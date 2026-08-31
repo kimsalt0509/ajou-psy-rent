@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithPopup } from "firebase/auth";
-import { getClientAuth, googleProvider } from "@/lib/firebase-client";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { getClientAuth, getClientDb, googleProvider } from "@/lib/firebase-client";
 import { useFirebaseAuth } from "@/components/FirebaseAuthProvider";
 
 export default function LoginPage() {
@@ -27,6 +28,13 @@ export default function LoginPage() {
         setPending(false);
         return;
       }
+      // Firestore users 컬렉션에 유저 정보 upsert (최초 로그인 시 생성, 이후 lastLoginAt 갱신)
+      const { uid, email, displayName, photoURL } = result.user;
+      await setDoc(
+        doc(getClientDb(), "users", uid),
+        { uid, email, displayName, photoURL, lastLoginAt: serverTimestamp() },
+        { merge: true },
+      );
       router.replace("/");
     } catch (err) {
       const code = (err as { code?: string }).code ?? "";

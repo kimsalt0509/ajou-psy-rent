@@ -1,5 +1,6 @@
 import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { type Auth, GoogleAuthProvider, getAuth } from "firebase/auth";
+import { type Firestore, getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,6 +14,7 @@ const firebaseConfig = {
 // 브라우저에서만 초기화 (SSR 중에는 실행하지 않음)
 let _app: FirebaseApp | undefined;
 let _auth: Auth | undefined;
+let _db: Firestore | undefined;
 
 export function getClientApp(): FirebaseApp {
   if (!_app) {
@@ -26,6 +28,13 @@ export function getClientAuth(): Auth {
     _auth = getAuth(getClientApp());
   }
   return _auth;
+}
+
+export function getClientDb(): Firestore {
+  if (!_db) {
+    _db = getFirestore(getClientApp());
+  }
+  return _db;
 }
 
 export const googleProvider = new GoogleAuthProvider();
