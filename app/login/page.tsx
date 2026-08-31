@@ -22,12 +22,7 @@ export default function LoginPage() {
     setPending(true);
     try {
       const result = await signInWithPopup(getClientAuth(), googleProvider);
-      if (!result.user.email?.endsWith("@ajou.ac.kr")) {
-        await getClientAuth().signOut();
-        setError("@ajou.ac.kr 이메일만 이용할 수 있습니다.");
-        setPending(false);
-        return;
-      }
+      // TODO: 임시 개방 — 추후 @ajou.ac.kr 전용으로 복구
       // Firestore users 컬렉션에 유저 정보 upsert (최초 로그인 시 생성, 이후 lastLoginAt 갱신)
       const { uid, email, displayName, photoURL } = result.user;
       await setDoc(
@@ -65,7 +60,7 @@ export default function LoginPage() {
           </p>
           <h1 className="mt-2 text-2xl font-bold text-black">과방 대여 장부</h1>
           <p className="mt-2 text-sm text-gray-500">
-            아주대 Google 계정(@ajou.ac.kr)으로 로그인하세요.
+            Google 계정으로 로그인하세요.
           </p>
         </div>
 
@@ -91,7 +86,7 @@ export default function LoginPage() {
             {pending ? "로그인 중..." : "Google로 로그인"}
           </button>
           <p className="text-center text-xs text-gray-400">
-            @ajou.ac.kr 계정만 이용 가능합니다
+            모든 Google 계정으로 로그인 가능합니다 (임시)
           </p>
         </div>
       </div>
