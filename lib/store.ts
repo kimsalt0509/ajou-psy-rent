@@ -136,10 +136,21 @@ export async function createRental(
       );
     }
 
-    tx.set(rentalRef, data);
+    // 물품에 dueDays가 설정된 경우 dueDate 계산
+    const dueDate = item.dueDays
+      ? new Date(Date.now() + item.dueDays * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
+    tx.set(rentalRef, { ...data, dueDate, itemName: item.name });
   });
 
   return { id: rentalRef.id, ...data };
+}
+
+export async function getRentalById(id: string): Promise<Rental | null> {
+  const snap = await db().collection(RENTALS).doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...(snap.data() as Omit<Rental, "id">) };
 }
 
 export async function completeReturn(
@@ -155,6 +166,19 @@ export async function completeReturn(
 
   await ref.update(returnData);
   return { ...rental, ...returnData };
+}
+
+// ─── Notice ──────────────────────────────────────────────────────────────────
+
+const NOTICE_DOC = "notices/main";
+
+export async function getNotice(): Promise<string> {
+  const snap = await db().doc(NOTICE_DOC).get();
+  return (snap.data()?.content as string) ?? "";
+}
+
+export async function setNotice(content: string): Promise<void> {
+  await db().doc(NOTICE_DOC).set({ content, updatedAt: new Date().toISOString() });
 }
 
 // ─── Stock ───────────────────────────────────────────────────────────────────

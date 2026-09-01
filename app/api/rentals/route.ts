@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
       quantity,
       studentId,
       studentName,
+      uid: user.uid,
       rentedAt: new Date().toISOString(),
+      dueDate: null, // store 트랜잭션 내에서 item.dueDays 기반으로 덮어씀
       rentPhoto,
       returnedAt: null,
       returnPhoto: null,

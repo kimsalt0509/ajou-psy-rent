@@ -15,6 +15,7 @@ export function UserMenu({ name, email, image }: Props) {
 
   async function handleSignOut() {
     await signOut(getClientAuth());
+    await fetch("/api/admin/login", { method: "DELETE" });
     router.push("/login");
   }
 

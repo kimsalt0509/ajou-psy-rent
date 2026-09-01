@@ -15,6 +15,10 @@ function formatWhen(iso: string) {
   });
 }
 
+function isOverdue(rental: Rental) {
+  return !!rental.dueDate && !rental.returnedAt && new Date(rental.dueDate) < new Date();
+}
+
 export function ReturnPanel({ rentals }: { rentals: Rental[] }) {
   const router = useRouter();
   const { user, idToken } = useFirebaseAuth();
@@ -23,13 +27,21 @@ export function ReturnPanel({ rentals }: { rentals: Rental[] }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
+  // 로그인한 경우 본인 대여 우선 필터링
+  const myRentals = useMemo(
+    () => (user ? rentals.filter((r) => r.uid === user.uid) : rentals),
+    [rentals, user],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim();
-    if (!q) return rentals;
-    return rentals.filter(
+    // 검색어가 있으면 전체에서 검색, 없으면 본인 것만
+    const pool = q ? rentals : myRentals;
+    if (!q) return pool;
+    return pool.filter(
       (r) => r.studentId.includes(q) || r.studentName.includes(q),
     );
-  }, [query, rentals]);
+  }, [query, rentals, myRentals]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,16 +84,32 @@ export function ReturnPanel({ rentals }: { rentals: Rental[] }) {
     );
   }
 
+  // 기한 초과된 본인 대여 목록
+  const overdueMyRentals = myRentals.filter(isOverdue);
+
   return (
     <div className="space-y-4">
+      {overdueMyRentals.length > 0 ? (
+        <div className="rounded-2xl bg-red-50 px-4 py-3 ring-1 ring-red-200">
+          <p className="text-sm font-semibold text-red-700">⚠️ 반납 기한이 지난 물품이 있습니다!</p>
+          <ul className="mt-1 space-y-0.5">
+            {overdueMyRentals.map((r) => (
+              <li key={r.id} className="text-sm text-red-600">
+                {r.itemName} {r.quantity}개 — 기한 {formatWhen(r.dueDate!)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium text-black">
-          학번 또는 이름 찾기
+          {myRentals.length > 0 ? "내 대여 목록" : "학번 또는 이름 찾기"}
         </span>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="내 학번을 입력하면 내 대여만 보여요"
+          placeholder="다른 사람 학번을 입력하면 해당 대여만 보여요"
           className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
         />
       </label>
@@ -89,6 +117,7 @@ export function ReturnPanel({ rentals }: { rentals: Rental[] }) {
       <ul className="space-y-2">
         {filtered.map((rental) => {
           const active = selected === rental.id;
+          const overdue = isOverdue(rental);
           return (
             <li key={rental.id}>
               <button
@@ -97,18 +126,30 @@ export function ReturnPanel({ rentals }: { rentals: Rental[] }) {
                 className={`w-full rounded-2xl px-4 py-3 text-left ring-1 transition ${
                   active
                     ? "bg-black text-white ring-black"
+                    : overdue
+                    ? "bg-red-50 text-black ring-red-200 hover:ring-red-300"
                     : "bg-white text-black ring-black/8 hover:ring-black/20"
                 }`}
               >
-                <p className="font-semibold">
-                  {rental.itemName} · {rental.quantity}개
-                </p>
-                <p
-                  className={`text-sm ${active ? "text-white/70" : "text-gray-400"}`}
-                >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold">
+                    {rental.itemName} · {rental.quantity}개
+                  </p>
+                  {overdue ? (
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${active ? "bg-white/20 text-white" : "bg-red-100 text-red-600"}`}>
+                      기한 초과
+                    </span>
+                  ) : null}
+                </div>
+                <p className={`text-sm ${active ? "text-white/70" : "text-gray-400"}`}>
                   {rental.studentName} ({rental.studentId}) ·{" "}
                   {formatWhen(rental.rentedAt)}
                 </p>
+                {rental.dueDate ? (
+                  <p className={`text-xs mt-0.5 ${active ? "text-white/60" : overdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
+                    반납 기한 {formatWhen(rental.dueDate)}
+                  </p>
+                ) : null}
               </button>
             </li>
           );

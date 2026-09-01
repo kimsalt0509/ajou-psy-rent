@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { savePhoto } from "@/lib/photos";
-import { completeReturn } from "@/lib/store";
+import { completeReturn, getRentalById } from "@/lib/store";
 import { verifyUser } from "@/lib/auth-helper";
+import { isAdmin } from "@/lib/admin";
 
 export async function POST(
   request: NextRequest,
@@ -15,6 +16,16 @@ export async function POST(
     );
 
   const { id } = await ctx.params;
+
+  // 본인 대여 or 관리자만 반납 가능
+  const rental = await getRentalById(id);
+  if (!rental)
+    return Response.json({ error: "대여 기록을 찾을 수 없습니다." }, { status: 404 });
+
+  const admin = await isAdmin();
+  if (!admin && rental.uid !== user.uid)
+    return Response.json({ error: "본인의 대여 기록만 반납할 수 있습니다." }, { status: 403 });
+
   const form = await request.formData();
   const photo = form.get("photo");
 

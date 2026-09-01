@@ -25,9 +25,6 @@ export function AdminLogin() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-3xl bg-white p-5 ring-1 ring-black/8">
-      <p className="text-sm text-gray-500">
-        물품 수량 수정과 전체 기록 사진은 학생회만 볼 수 있습니다.
-      </p>
       <input
         name="pin"
         type="password"
