@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
   const itemId = String(form.get("itemId") ?? "").trim();
   const studentId = String(form.get("studentId") ?? "").trim();
   const studentName = String(form.get("studentName") ?? "").trim();
+  const phone = String(form.get("phone") ?? "").trim();
   const quantity = Number(form.get("quantity"));
   const photo = form.get("photo");
 
@@ -41,6 +42,8 @@ export async function POST(request: NextRequest) {
     );
   if (studentName.length < 2)
     return Response.json({ error: "이름을 정확히 입력해 주세요." }, { status: 400 });
+  if (!phone)
+    return Response.json({ error: "전화번호를 입력해 주세요." }, { status: 400 });
   if (!Number.isInteger(quantity) || quantity < 1)
     return Response.json(
       { error: "수량은 1개 이상이어야 합니다." },
@@ -57,9 +60,10 @@ export async function POST(request: NextRequest) {
       quantity,
       studentId,
       studentName,
+      phone,
       uid: user.uid,
       rentedAt: new Date().toISOString(),
-      dueDate: null, // store 트랜잭션 내에서 item.dueDays 기반으로 덮어씀
+      dueDate: null,
       rentPhoto,
       returnedAt: null,
       returnPhoto: null,

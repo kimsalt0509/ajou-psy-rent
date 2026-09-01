@@ -3,17 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const links = [
+const baseLinks = [
   { href: "/", label: "재고" },
   { href: "/rent", label: "대여" },
   { href: "/return", label: "반납" },
   { href: "/admin", label: "관리" },
 ];
 
-export function NavBar() {
+const adminLinks = [
+  { href: "/status", label: "현황" },
+  { href: "/records", label: "기록" },
+];
+
+export function NavBar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+  const links = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks;
+
   return (
-    <nav className="grid grid-cols-4 gap-1 rounded-2xl bg-gray-100 p-1">
+    <nav className={`grid gap-1 rounded-2xl bg-gray-100 p-1`} style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
       {links.map((link) => {
         const active =
           pathname === link.href ||

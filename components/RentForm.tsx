@@ -130,6 +130,21 @@ export function RentForm({ items, defaultName }: Props) {
         />
       </label>
 
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-black">
+          전화번호 <span className="text-red-500">*</span>
+        </span>
+        <input
+          name="phone"
+          type="tel"
+          inputMode="tel"
+          pattern="[\d\-]{9,13}"
+          placeholder="예: 010-1234-5678"
+          required
+          className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
+        />
+      </label>
+
       <PhotoField name="photo" label="대여 사진 (물품과 함께)" />
 
       {error ? (
@@ -143,7 +158,7 @@ export function RentForm({ items, defaultName }: Props) {
         disabled={pending}
         className="w-full rounded-2xl bg-black py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
       >
-        {pending ? "기록 중..." : "대여하기"}
+        {pending ? "대여하는 중..." : "대여하기"}
       </button>
     </form>
   );

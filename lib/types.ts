@@ -15,6 +15,7 @@ export type Rental = {
   quantity: number;
   studentId: string;
   studentName: string;
+  phone: string;        // 대여자 전화번호
   uid: string;          // 대여자 Firebase UID
   rentedAt: string;
   dueDate: string | null; // 반납 기한 (ISO). 기간 미설정 물품은 null
