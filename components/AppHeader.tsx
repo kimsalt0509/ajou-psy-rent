@@ -1,12 +1,29 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signInWithPopup } from "firebase/auth";
+import { getClientAuth, googleProvider } from "@/lib/firebase-client";
 import { useFirebaseAuth } from "./FirebaseAuthProvider";
 import { NavBar } from "./NavBar";
 import { UserMenu } from "./UserMenu";
 
-export function AppHeader() {
+export function AppHeader({ isAdmin = false }: { isAdmin?: boolean }) {
   const { user, loading } = useFirebaseAuth();
+  const router = useRouter();
+
+  async function handleLogin() {
+    try {
+      await signInWithPopup(getClientAuth(), googleProvider);
+      router.push("/");
+    } catch {
+      // 팝업 닫힘 등 무시
+    }
+  }
+
+  async function handleAdminLogout() {
+    await fetch("/api/admin/login", { method: "DELETE" });
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-20 border-b border-black/8 bg-white shadow-sm">
@@ -20,24 +37,36 @@ export function AppHeader() {
               과방 대여 장부
             </h1>
           </div>
-          {loading ? (
-            <div className="h-7 w-20 animate-pulse rounded-xl bg-gray-100" />
-          ) : user ? (
-            <UserMenu
-              name={user.displayName ?? user.email ?? ""}
-              email={user.email ?? ""}
-              image={user.photoURL}
-            />
-          ) : (
-            <Link
-              href="/login"
-              className="rounded-xl bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800"
-            >
-              로그인
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={handleAdminLogout}
+                className="rounded-xl bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200 transition"
+              >
+                관리자 나가기
+              </button>
+            ) : null}
+            {loading ? (
+              <div className="h-7 w-20 animate-pulse rounded-xl bg-gray-100" />
+            ) : user ? (
+              <UserMenu
+                name={user.displayName ?? user.email ?? ""}
+                email={user.email ?? ""}
+                image={user.photoURL}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogin}
+                className="rounded-xl bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800"
+              >
+                로그인
+              </button>
+            )}
+          </div>
         </div>
-        <NavBar />
+        <NavBar isAdmin={isAdmin} />
       </div>
     </header>
   );

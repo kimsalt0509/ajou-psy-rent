@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ItemWithStock, Rental } from "@/lib/types";
+import type { ItemWithStock } from "@/lib/types";
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString("ko-KR");
@@ -33,11 +33,9 @@ function LightBox({ src, onClose }: { src: string; onClose: () => void }) {
 
 export function AdminPanel({
   items,
-  rentals,
   notice: initialNotice = "",
 }: {
   items: ItemWithStock[];
-  rentals: Rental[];
   notice?: string;
 }) {
   const router = useRouter();
@@ -137,25 +135,9 @@ export function AdminPanel({
     }
   }
 
-  async function adminLogout() {
-    await fetch("/api/admin/login", { method: "DELETE" });
-    router.refresh();
-  }
-
   return (
     <div className="space-y-8">
       {lightbox ? <LightBox src={lightbox} onClose={() => setLightbox(null)} /> : null}
-
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-400">관리자 모드</p>
-        <button
-          type="button"
-          onClick={adminLogout}
-          className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 transition"
-        >
-          관리자 나가기
-        </button>
-      </div>
 
       {error ? (
         <p className="rounded-xl bg-pink-50 px-4 py-3 text-sm text-pink-800 ring-1 ring-pink-200">
@@ -284,68 +266,6 @@ export function AdminPanel({
             추가
           </button>
         </form>
-      </section>
-
-      <section>
-        <h2 className="mb-3 font-bold text-black">최근 대여 기록</h2>
-        <ul className="space-y-2">
-          {rentals.slice(0, 40).map((rental) => (
-            <li
-              key={rental.id}
-              className="rounded-2xl bg-white p-4 text-sm ring-1 ring-black/8"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold text-black">
-                  {rental.studentName} ({rental.studentId}) · {rental.itemName}{" "}
-                  {rental.quantity}개
-                </p>
-                <div className="flex shrink-0 gap-1">
-                  {!rental.returnedAt && rental.dueDate && new Date(rental.dueDate) < new Date() ? (
-                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 ring-1 ring-red-200">
-                      기한 초과
-                    </span>
-                  ) : null}
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      rental.returnedAt
-                        ? "bg-gray-100 text-gray-500"
-                        : "bg-pink-50 text-pink-700 ring-1 ring-pink-200"
-                    }`}
-                  >
-                    {rental.returnedAt ? "반납" : "대여 중"}
-                  </span>
-                </div>
-              </div>
-              <p className="mt-1 text-gray-400">대여 {formatWhen(rental.rentedAt)}</p>
-              {rental.dueDate && !rental.returnedAt ? (
-                <p className={`text-xs ${new Date(rental.dueDate) < new Date() ? "text-red-500 font-medium" : "text-gray-400"}`}>
-                  반납 기한 {formatWhen(rental.dueDate)}
-                </p>
-              ) : null}
-              {rental.returnedAt ? (
-                <p className="text-gray-400">반납 {formatWhen(rental.returnedAt)}</p>
-              ) : null}
-              <div className="mt-2 flex gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={rental.rentPhoto}
-                  alt="대여 사진"
-                  onClick={() => setLightbox(rental.rentPhoto)}
-                  className="h-16 w-16 cursor-pointer rounded-xl object-cover ring-1 ring-black/8 hover:opacity-80 transition"
-                />
-                {rental.returnPhoto ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={rental.returnPhoto}
-                    alt="반납 사진"
-                    onClick={() => setLightbox(rental.returnPhoto!)}
-                    className="h-16 w-16 cursor-pointer rounded-xl object-cover ring-1 ring-black/8 hover:opacity-80 transition"
-                  />
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
       </section>
     </div>
   );
