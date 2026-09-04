@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { StockCard } from "@/components/StockCard";
+import { StockList } from "@/components/StockList";
 import { getItemsWithStock } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function HomePage({
         <p className="text-sm text-white/50">과방에 지금 남아 있는 물품!</p>
         <p className="mt-1 text-5xl font-bold">{remaining}개</p>
         <p className="mt-2 text-sm text-white/60">
-          빌리는 사람이 직접 기록하고, 다음에 올 사람은 여기서 남은 수를 보면 됩니다.
+          해당 사이트에서 대여 가능한 물품의 수량을 확인하실 수 있습니다. 물품 대여 및 반납을 원하실 경우 로그인 후 이용해 주시기 바랍니다. 대여한 물품은 사용 후 반드시 반납해 주시기 바랍니다.
         </p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Link
@@ -48,11 +48,7 @@ export default async function HomePage({
         </div>
       </section>
 
-      <div className="grid gap-3">
-        {items.map((item) => (
-          <StockCard key={item.id} item={item} />
-        ))}
-      </div>
+      <StockList items={items} />
     </div>
   );
 }
