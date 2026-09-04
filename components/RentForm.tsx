@@ -69,6 +69,49 @@ export function RentForm({ items, defaultName }: Props) {
     <form onSubmit={onSubmit} className="space-y-4">
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium text-black">
+          이름 <span className="text-red-500">*</span>
+        </span>
+        <input
+          name="studentName"
+          placeholder="본인 이름"
+          required
+          minLength={2}
+          defaultValue={defaultName ?? ""}
+          className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
+        />
+      </label>
+
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-black">
+          학번 <span className="text-red-500">*</span>
+        </span>
+        <input
+          name="studentId"
+          inputMode="numeric"
+          pattern="\d{6,10}"
+          placeholder="예: 202412345"
+          required
+          className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
+        />
+      </label>
+
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-black">
+          전화번호 <span className="text-red-500">*</span>
+        </span>
+        <input
+          name="phone"
+          type="tel"
+          inputMode="tel"
+          pattern="[\d\-]{9,13}"
+          placeholder="예: 010-1234-5678"
+          required
+          className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
+        />
+      </label>
+
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-black">
           물품 <span className="text-red-500">*</span>
         </span>
         <select
@@ -97,49 +140,6 @@ export function RentForm({ items, defaultName }: Props) {
           type="number"
           min={1}
           defaultValue={1}
-          required
-          className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
-        />
-      </label>
-
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-black">
-          학번 <span className="text-red-500">*</span>
-        </span>
-        <input
-          name="studentId"
-          inputMode="numeric"
-          pattern="\d{6,10}"
-          placeholder="예: 202412345"
-          required
-          className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
-        />
-      </label>
-
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-black">
-          이름 <span className="text-red-500">*</span>
-        </span>
-        <input
-          name="studentName"
-          placeholder="본인 이름"
-          required
-          minLength={2}
-          defaultValue={defaultName ?? ""}
-          className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
-        />
-      </label>
-
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-black">
-          전화번호 <span className="text-red-500">*</span>
-        </span>
-        <input
-          name="phone"
-          type="tel"
-          inputMode="tel"
-          pattern="[\d\-]{9,13}"
-          placeholder="예: 010-1234-5678"
           required
           className="w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-black/10"
         />
