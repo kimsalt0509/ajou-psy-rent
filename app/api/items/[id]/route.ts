@@ -5,7 +5,7 @@ import {
   getActiveRentalCountForItem,
   getItems,
   updateItem,
-  deductFromStorage,
+  deductFromStorageByName,
 } from "@/lib/store";
 
 async function requireAdmin() {
@@ -57,10 +57,10 @@ export async function PATCH(
         );
       patch.total = total;
 
-      // 재고 total이 증가한 경우 → 창고에서 차감 (창고 → 재고로 꺼낸 것)
+      // 재고 total이 증가한 경우 → 같은 이름의 창고 물품에서 차감
       if (total > current.total) {
         const diff = total - current.total;
-        await deductFromStorage(id, diff);
+        await deductFromStorageByName(current.name, diff);
       }
     }
 

@@ -199,41 +199,40 @@ export async function setFaviconUrl(url: string): Promise<void> {
 const STORAGE = "storage";
 
 export async function getStorageItems(): Promise<StorageItem[]> {
-  const snap = await db().collection(STORAGE).get();
+  const snap = await db().collection(STORAGE).orderBy("name").get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<StorageItem, "id">) }));
 }
 
-// 창고에 수량 추가 (물품 추가 구매 시)
-export async function addToStorage(
-  itemId: string,
-  quantity: number,
-  item: Pick<Item, "name" | "emoji">,
+export async function createStorageItem(
+  data: Omit<StorageItem, "id" | "updatedAt">,
 ): Promise<StorageItem> {
-  const ref = db().collection(STORAGE).doc(itemId);
-  const snap = await ref.get();
-  const current = (snap.data()?.quantity as number) ?? 0;
-  const updated: Omit<StorageItem, "id"> = {
-    itemId,
-    itemName: item.name,
-    emoji: item.emoji,
-    quantity: current + quantity,
-    updatedAt: new Date().toISOString(),
-  };
-  await ref.set(updated);
-  return { id: itemId, ...updated };
+  const now = new Date().toISOString();
+  const ref = await db().collection(STORAGE).add({ ...data, updatedAt: now });
+  return { id: ref.id, ...data, updatedAt: now };
 }
 
-// 창고에서 수량 차감 (재고 total 증가 시 자동 호출)
-export async function deductFromStorage(
-  itemId: string,
+export async function updateStorageItem(
+  id: string,
+  data: Partial<Omit<StorageItem, "id">>,
+): Promise<void> {
+  await db().collection(STORAGE).doc(id).update({ ...data, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteStorageItem(id: string): Promise<void> {
+  await db().collection(STORAGE).doc(id).delete();
+}
+
+// 재고 total 증가 시 같은 이름의 창고 물품에서 자동 차감
+export async function deductFromStorageByName(
+  itemName: string,
   quantity: number,
 ): Promise<void> {
-  const ref = db().collection(STORAGE).doc(itemId);
-  const snap = await ref.get();
-  if (!snap.exists) return; // 창고 기록 없으면 무시
-  const current = (snap.data()?.quantity as number) ?? 0;
+  const snap = await db().collection(STORAGE).where("name", "==", itemName).get();
+  if (snap.empty) return;
+  const doc = snap.docs[0];
+  const current = (doc.data().quantity as number) ?? 0;
   const newQty = Math.max(0, current - quantity);
-  await ref.update({ quantity: newQty, updatedAt: new Date().toISOString() });
+  await doc.ref.update({ quantity: newQty, updatedAt: new Date().toISOString() });
 }
 
 // ─── Stock ───────────────────────────────────────────────────────────────────

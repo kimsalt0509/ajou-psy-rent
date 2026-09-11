@@ -1,28 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/admin";
-import { addToStorage, getItems, getStorageItems } from "@/lib/store";
+import { createStorageItem, getStorageItems } from "@/lib/store";
 
 export async function GET() {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "관리자 인증이 필요합니다." }, { status: 401 });
   }
-  const [storageItems, items] = await Promise.all([getStorageItems(), getItems()]);
-
-  // 창고에 없는 물품도 quantity: 0으로 포함해서 전체 목록 반환
-  const itemMap = new Map(storageItems.map((s) => [s.itemId, s]));
-  const full = items.map((item) => {
-    const existing = itemMap.get(item.id);
-    return existing ?? {
-      id: item.id,
-      itemId: item.id,
-      itemName: item.name,
-      emoji: item.emoji,
-      quantity: 0,
-      updatedAt: "",
-    };
-  });
-
-  return NextResponse.json({ storage: full });
+  const storage = await getStorageItems();
+  return NextResponse.json({ storage });
 }
 
 export async function POST(request: NextRequest) {
@@ -30,19 +15,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "관리자 인증이 필요합니다." }, { status: 401 });
   }
 
-  const body = (await request.json()) as { itemId?: string; quantity?: number };
-  const { itemId, quantity } = body;
+  const body = (await request.json()) as {
+    name?: string;
+    emoji?: string;
+    quantity?: number;
+    note?: string;
+  };
 
-  if (!itemId || !Number.isInteger(quantity) || (quantity as number) <= 0) {
-    return NextResponse.json({ error: "itemId와 양수 quantity가 필요합니다." }, { status: 400 });
-  }
+  const name = body.name?.trim();
+  if (!name) return NextResponse.json({ error: "물품 이름을 입력해 주세요." }, { status: 400 });
 
-  const items = await getItems();
-  const item = items.find((i) => i.id === itemId);
-  if (!item) {
-    return NextResponse.json({ error: "물품을 찾을 수 없습니다." }, { status: 404 });
-  }
+  const quantity = Number(body.quantity ?? 0);
+  if (!Number.isInteger(quantity) || quantity < 0)
+    return NextResponse.json({ error: "수량은 0 이상의 정수여야 합니다." }, { status: 400 });
 
-  const updated = await addToStorage(itemId, quantity as number, { name: item.name, emoji: item.emoji });
-  return NextResponse.json({ storage: updated });
+  const item = await createStorageItem({
+    name,
+    emoji: body.emoji?.trim() || "📦",
+    quantity,
+    note: body.note?.trim() || "",
+  });
+  return NextResponse.json({ item });
 }
