@@ -25,6 +25,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
             {children}
           </main>
+          <footer className="mx-auto w-full max-w-3xl px-4 py-6 border-t border-black/8 mt-4">
+            <p className="text-xs text-gray-400 text-center leading-relaxed">
+              사이트에 문제가 생기면 심리학과 부학생회장 김가람{" "}
+              <a href="tel:01064093370" className="underline hover:text-gray-600">
+                010-6409-3370
+              </a>
+              으로 연락 부탁드립니다.
+            </p>
+          </footer>
         </FirebaseAuthProvider>
       </body>
     </html>

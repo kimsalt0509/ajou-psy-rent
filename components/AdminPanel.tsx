@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ItemWithStock } from "@/lib/types";
 
@@ -50,6 +50,52 @@ export function AdminPanel({
   const [faviconUrl, setFaviconUrl] = useState<string | null>(initialFaviconUrl);
   const [faviconUploading, setFaviconUploading] = useState(false);
   const [faviconSaved, setFaviconSaved] = useState(false);
+
+  // 창고 state
+  type StorageRow = { id: string; itemId: string; itemName: string; emoji: string; quantity: number };
+  const [storageItems, setStorageItems] = useState<StorageRow[]>([]);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [storageQtys, setStorageQtys] = useState<Record<string, string>>({});
+  const [storageSaving, setStorageSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStorageLoading(true);
+    fetch("/api/storage")
+      .then((r) => r.json())
+      .then((d: { storage?: StorageRow[] }) => {
+        if (d.storage) {
+          setStorageItems(d.storage);
+          const qtys: Record<string, string> = {};
+          d.storage.forEach((s) => { qtys[s.itemId] = ""; });
+          setStorageQtys(qtys);
+        }
+      })
+      .finally(() => setStorageLoading(false));
+  }, []);
+
+  async function addStorage(itemId: string) {
+    const qty = Number(storageQtys[itemId]);
+    if (!Number.isInteger(qty) || qty <= 0) return;
+    setStorageSaving(itemId);
+    const res = await fetch("/api/storage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId, quantity: qty }),
+    });
+    setStorageSaving(null);
+    if (res.ok) {
+      const data = (await res.json()) as { storage?: StorageRow };
+      if (data.storage) {
+        setStorageItems((prev) =>
+          prev.map((s) => s.itemId === itemId ? { ...s, quantity: data.storage!.quantity } : s)
+        );
+        setStorageQtys((prev) => ({ ...prev, [itemId]: "" }));
+      }
+    } else {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error ?? "창고 추가에 실패했습니다.");
+    }
+  }
 
   async function addItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -241,6 +287,44 @@ export function AdminPanel({
         >
           {noticeSaving ? "저장 중..." : noticeSaved ? "저장됨 ✓" : "공지 저장"}
         </button>
+      </section>
+
+      <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
+        <h2 className="font-bold text-black">창고 재고</h2>
+        <p className="mt-1 text-sm text-gray-400">
+          창고에 보관 중인 비축 수량입니다. 재고(보유 수량)가 늘면 자동으로 차감됩니다.
+        </p>
+        {storageLoading ? (
+          <p className="mt-3 text-sm text-gray-400">불러오는 중...</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {storageItems.map((s) => (
+              <li key={s.itemId} className="flex items-center gap-3">
+                <span className="text-xl shrink-0">{s.emoji}</span>
+                <p className="flex-1 text-sm font-medium text-black truncate">{s.itemName}</p>
+                <span className="rounded-xl bg-gray-50 px-3 py-1.5 text-sm font-bold text-black ring-1 ring-black/8 shrink-0">
+                  {s.quantity}개
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="+수량"
+                  value={storageQtys[s.itemId] ?? ""}
+                  onChange={(e) => setStorageQtys((prev) => ({ ...prev, [s.itemId]: e.target.value }))}
+                  className="w-20 rounded-xl bg-gray-100 px-2 py-1.5 text-sm text-black shrink-0"
+                />
+                <button
+                  type="button"
+                  onClick={() => addStorage(s.itemId)}
+                  disabled={storageSaving === s.itemId || !Number(storageQtys[s.itemId])}
+                  className="shrink-0 rounded-xl bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-40 transition"
+                >
+                  {storageSaving === s.itemId ? "..." : "추가"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">

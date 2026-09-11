@@ -28,3 +28,13 @@ export type ItemWithStock = Item & {
   rented: number;
   remaining: number;
 };
+
+// 창고(비축 재고) — 물품별로 창고에 보관 중인 수량
+export type StorageItem = {
+  id: string;       // itemId와 동일
+  itemId: string;
+  itemName: string;
+  emoji: string;
+  quantity: number; // 창고에 남은 수량
+  updatedAt: string;
+};
