@@ -1,19 +1,19 @@
 import { getFaviconUrl } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
-
-// size/contentType export를 제거 — metadata의 icons.icon: "/icon" 이 직접 참조
+export const size = { width: 64, height: 64 };
+export const contentType = "image/png";
 
 export default async function Icon() {
   const url = await getFaviconUrl();
 
   if (!url) {
-    // 기본: 빈 1x1 투명 PNG
-    const transparent1x1 = Buffer.from(
+    // 파비콘 미설정 시 1x1 투명 PNG
+    const transparent = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
       "base64",
     );
-    return new Response(transparent1x1, {
+    return new Response(transparent, {
       headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=60" },
     });
   }

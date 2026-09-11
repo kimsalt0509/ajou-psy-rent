@@ -13,11 +13,6 @@ const noto = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "심리학과 학생회 대여",
   description: "과방 물품 남은 수량 확인, 대여·반납 기록",
-  icons: {
-    icon: "/icon",
-    shortcut: "/icon",
-    apple: "/icon",
-  },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
