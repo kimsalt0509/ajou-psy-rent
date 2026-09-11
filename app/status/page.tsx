@@ -13,8 +13,13 @@ function formatWhen(iso: string) {
   });
 }
 
+// dueDate 다음날 자정을 넘겼을 때 초과로 판단 (당일 저녁까지 반납 허용)
 function isOverdue(dueDate: string | null) {
-  return !!dueDate && new Date(dueDate) < new Date();
+  if (!dueDate) return false;
+  const grace = new Date(dueDate);
+  grace.setDate(grace.getDate() + 1); // +1일 버퍼
+  grace.setHours(0, 0, 0, 0);        // 다음날 자정
+  return new Date() >= grace;
 }
 
 export default async function StatusPage({

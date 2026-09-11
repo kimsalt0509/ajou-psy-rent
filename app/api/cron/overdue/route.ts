@@ -18,9 +18,15 @@ export async function GET(request: NextRequest) {
 
   const now = new Date();
   const rentals = await getRentals({ activeOnly: true });
-  const overdueRentals = rentals.filter(
-    (r) => r.dueDate && new Date(r.dueDate) < now,
-  );
+
+  // dueDate 다음날 자정을 넘겼을 때만 초과 (당일 저녁까지 반납 허용, +1일 버퍼)
+  const overdueRentals = rentals.filter((r) => {
+    if (!r.dueDate) return false;
+    const grace = new Date(r.dueDate);
+    grace.setDate(grace.getDate() + 1);
+    grace.setHours(0, 0, 0, 0);
+    return now >= grace;
+  });
 
   if (overdueRentals.length === 0) {
     return Response.json({ sent: 0 });
