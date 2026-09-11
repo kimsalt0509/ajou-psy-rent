@@ -12,6 +12,7 @@ const baseLinks = [
 
 const adminLinks = [
   { href: "/status", label: "현황" },
+  { href: "/storage", label: "창고" },
   { href: "/records", label: "기록" },
 ];
 

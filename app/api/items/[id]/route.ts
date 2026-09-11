@@ -5,7 +5,6 @@ import {
   getActiveRentalCountForItem,
   getItems,
   updateItem,
-  deductFromStorageByName,
 } from "@/lib/store";
 
 async function requireAdmin() {
@@ -56,12 +55,6 @@ export async function PATCH(
           `지금 ${rented}개가 대여 중이라 ${rented}개 미만으로 줄일 수 없습니다.`,
         );
       patch.total = total;
-
-      // 재고 total이 증가한 경우 → 같은 이름의 창고 물품에서 차감
-      if (total > current.total) {
-        const diff = total - current.total;
-        await deductFromStorageByName(current.name, diff);
-      }
     }
 
     await updateItem(id, patch);

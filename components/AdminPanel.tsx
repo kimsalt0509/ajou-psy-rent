@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ItemWithStock } from "@/lib/types";
 
@@ -50,70 +50,6 @@ export function AdminPanel({
   const [faviconUrl, setFaviconUrl] = useState<string | null>(initialFaviconUrl);
   const [faviconUploading, setFaviconUploading] = useState(false);
   const [faviconSaved, setFaviconSaved] = useState(false);
-
-  // 창고 state
-  type StorageRow = { id: string; name: string; emoji: string; quantity: number; note: string };
-  const [storageItems, setStorageItems] = useState<StorageRow[]>([]);
-  const [storageLoading, setStorageLoading] = useState(false);
-  const [storageDeletingId, setStorageDeletingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setStorageLoading(true);
-    fetch("/api/storage")
-      .then((r) => r.json())
-      .then((d: { storage?: StorageRow[] }) => { if (d.storage) setStorageItems(d.storage); })
-      .finally(() => setStorageLoading(false));
-  }, []);
-
-  async function addStorageItem(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const fd = new FormData(event.currentTarget);
-    const body = {
-      name: String(fd.get("s_name") ?? "").trim(),
-      emoji: String(fd.get("s_emoji") ?? "").trim() || "📦",
-      quantity: Number(fd.get("s_quantity") ?? 0),
-      note: String(fd.get("s_note") ?? "").trim(),
-    };
-    if (!body.name) { setError("창고 물품 이름을 입력해 주세요."); return; }
-    const res = await fetch("/api/storage", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { item?: StorageRow };
-      if (data.item) setStorageItems((prev) => [...prev, data.item!]);
-      (event.target as HTMLFormElement).reset();
-    } else {
-      const data = (await res.json()) as { error?: string };
-      setError(data.error ?? "창고 물품 추가에 실패했습니다.");
-    }
-  }
-
-  async function updateStorageQty(id: string, quantity: number) {
-    const res = await fetch(`/api/storage/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quantity }),
-    });
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      setError(data.error ?? "수정에 실패했습니다.");
-    }
-  }
-
-  async function deleteStorageItem(id: string, name: string) {
-    if (!confirm(`창고에서 "${name}"을(를) 삭제할까요?`)) return;
-    setStorageDeletingId(id);
-    const res = await fetch(`/api/storage/${id}`, { method: "DELETE" });
-    setStorageDeletingId(null);
-    if (res.ok) {
-      setStorageItems((prev) => prev.filter((s) => s.id !== id));
-    } else {
-      const data = (await res.json()) as { error?: string };
-      setError(data.error ?? "삭제에 실패했습니다.");
-    }
-  }
 
   async function addItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -305,61 +241,6 @@ export function AdminPanel({
         >
           {noticeSaving ? "저장 중..." : noticeSaved ? "저장됨 ✓" : "공지 저장"}
         </button>
-      </section>
-
-      <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
-        <h2 className="font-bold text-black">창고 재고</h2>
-        <p className="mt-1 text-sm text-gray-400">
-          재고와 별개로 관리되는 비축 물품입니다. 재고 보유 수량이 늘면 같은 이름의 창고 물품에서 자동 차감됩니다.
-        </p>
-
-        {/* 창고 물품 목록 */}
-        {storageLoading ? (
-          <p className="mt-3 text-sm text-gray-400">불러오는 중...</p>
-        ) : storageItems.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-400">등록된 창고 물품이 없습니다.</p>
-        ) : (
-          <ul className="mt-4 space-y-3">
-            {storageItems.map((s) => (
-              <li key={s.id} className="flex items-center gap-3">
-                <span className="text-xl shrink-0">{s.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-black truncate">{s.name}</p>
-                  {s.note ? <p className="text-[11px] text-gray-400 truncate">{s.note}</p> : null}
-                </div>
-                <input
-                  type="number"
-                  min={0}
-                  defaultValue={s.quantity}
-                  className="w-16 rounded-xl bg-gray-100 px-2 py-2 text-sm text-black shrink-0"
-                  onBlur={(e) => {
-                    const val = Number(e.target.value);
-                    if (val !== s.quantity) updateStorageQty(s.id, val);
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => deleteStorageItem(s.id, s.name)}
-                  disabled={storageDeletingId === s.id}
-                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-pink-50 hover:text-pink-700 disabled:opacity-40 transition"
-                >
-                  {storageDeletingId === s.id ? "삭제 중..." : "삭제"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* 창고 물품 추가 폼 */}
-        <form onSubmit={addStorageItem} className="mt-4 grid gap-3 sm:grid-cols-2">
-          <input name="s_name" required placeholder="물품 이름" className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400" />
-          <input name="s_emoji" placeholder="이모지 (📦)" className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400" />
-          <input name="s_quantity" type="number" min={0} defaultValue={0} placeholder="수량" className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400" />
-          <input name="s_note" placeholder="비고" className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400" />
-          <button className="rounded-xl bg-black py-2 text-sm font-semibold text-white hover:bg-gray-800 transition sm:col-span-2">
-            창고 물품 추가
-          </button>
-        </form>
       </section>
 
       <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
