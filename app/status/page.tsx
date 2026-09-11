@@ -62,8 +62,8 @@ export default async function StatusPage({
       ) : null}
 
       <div>
-        <h2 className="text-xl font-bold text-black">지금 빌려 간 사람</h2>
-        <p className="mt-1 text-sm text-gray-400">반납되면 이 목록에서 빠집니다.</p>
+        <h2 className="text-xl font-bold text-black">현황</h2>
+        <p className="mt-1 text-sm text-gray-400">현재 대여 중인 물품을 품목별로 확인합니다. 반납 기한이 지난 항목은 상단에 빨간색으로 표시됩니다. 반납되면 이 목록에서 빠집니다.</p>
       </div>
 
       {/* 기한 초과 상단 경고 */}

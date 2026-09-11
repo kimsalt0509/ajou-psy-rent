@@ -15,7 +15,10 @@ export default async function RecordsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-black">대여 기록</h2>
+      <div>
+        <h2 className="text-xl font-bold text-black">대여 기록</h2>
+        <p className="mt-1 text-sm text-gray-400">모든 대여·반납 내역입니다. 사진을 클릭하면 크게 볼 수 있습니다.</p>
+      </div>
       <RecordsList rentals={sorted} />
     </div>
   );

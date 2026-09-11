@@ -165,6 +165,49 @@ export function AdminPanel({
     <div className="space-y-8">
       {lightbox ? <LightBox src={lightbox} onClose={() => setLightbox(null)} /> : null}
 
+      {/* 관리자 가이드 */}
+      <section className="rounded-3xl bg-gray-900 p-5 text-white space-y-4">
+        <div>
+          <p className="text-xs font-semibold tracking-widest text-white/40 uppercase">관리자 가이드</p>
+          <h2 className="mt-1 text-base font-bold">처음 사용하신다면 읽어보세요</h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl bg-white/10 px-4 py-3">
+            <p className="text-sm font-semibold">📦 관리 탭 (현재 페이지)</p>
+            <p className="mt-1 text-xs text-white/60 leading-relaxed">
+              대여 물품을 추가·삭제하고 보유 수량을 조절합니다. 공지사항을 입력하면 대여 페이지 상단에 표시됩니다. 탭 아이콘도 여기서 변경할 수 있습니다.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white/10 px-4 py-3">
+            <p className="text-sm font-semibold">📊 현황 탭</p>
+            <p className="mt-1 text-xs text-white/60 leading-relaxed">
+              지금 대여 중인 물품을 품목별로 확인합니다. 반납 기한이 지난 학생은 빨간색으로 상단에 표시됩니다. 소모품은 표시되지 않습니다.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white/10 px-4 py-3">
+            <p className="text-sm font-semibold">🏭 창고 탭</p>
+            <p className="mt-1 text-xs text-white/60 leading-relaxed">
+              구매해서 창고에 보관 중인 비축 물품을 관리합니다. &ldquo;재고로 이동&rdquo; 버튼으로 창고 수량을 줄이고 대여 가능한 재고를 늘릴 수 있습니다.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white/10 px-4 py-3">
+            <p className="text-sm font-semibold">📋 기록 탭</p>
+            <p className="mt-1 text-xs text-white/60 leading-relaxed">
+              모든 대여·반납 기록을 조회합니다. 사진을 클릭하면 크게 볼 수 있고, 학번·연락처도 확인할 수 있습니다.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white/10 px-4 py-3 sm:col-span-2">
+            <p className="text-sm font-semibold">🔄 반납 탭 (관리자 전용 기능)</p>
+            <p className="mt-1 text-xs text-white/60 leading-relaxed">
+              관리자로 로그인하면 반납 탭에서 학번·이름으로 다른 사람의 대여 기록을 검색하고 대신 반납 처리할 수 있습니다.
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-white/30">
+          관리자 비밀번호를 바꾸려면 개발자에게 문의하세요.
+        </p>
+      </section>
+
       {error ? (
         <p className="rounded-xl bg-pink-50 px-4 py-3 text-sm text-pink-800 ring-1 ring-pink-200">
           {error}
