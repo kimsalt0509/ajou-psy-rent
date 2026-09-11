@@ -3,7 +3,6 @@ import { Noto_Sans_KR } from "next/font/google";
 import { AppHeader } from "@/components/AppHeader";
 import { FirebaseAuthProvider } from "@/components/FirebaseAuthProvider";
 import { isAdmin } from "@/lib/admin";
-import { getFaviconUrl } from "@/lib/store";
 import "./globals.css";
 
 const noto = Noto_Sans_KR({
@@ -11,21 +10,10 @@ const noto = Noto_Sans_KR({
   weight: ["400", "500", "600", "700"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const faviconUrl = await getFaviconUrl();
-  return {
-    title: "심리학과 학생회 대여",
-    description: "과방 물품 남은 수량 확인, 대여·반납 기록",
-    ...(faviconUrl
-      ? {
-          icons: {
-            icon: faviconUrl,
-            apple: faviconUrl,
-          },
-        }
-      : {}),
-  };
-}
+export const metadata: Metadata = {
+  title: "심리학과 학생회 대여",
+  description: "과방 물품 남은 수량 확인, 대여·반납 기록",
+};
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const admin = await isAdmin();
