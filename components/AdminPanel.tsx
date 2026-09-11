@@ -34,9 +34,11 @@ function LightBox({ src, onClose }: { src: string; onClose: () => void }) {
 export function AdminPanel({
   items,
   notice: initialNotice = "",
+  faviconUrl: initialFaviconUrl = null,
 }: {
   items: ItemWithStock[];
   notice?: string;
+  faviconUrl?: string | null;
 }) {
   const router = useRouter();
   const [error, setError] = useState("");
@@ -45,6 +47,9 @@ export function AdminPanel({
   const [noticeSaving, setNoticeSaving] = useState(false);
   const [noticeSaved, setNoticeSaved] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(initialFaviconUrl);
+  const [faviconUploading, setFaviconUploading] = useState(false);
+  const [faviconSaved, setFaviconSaved] = useState(false);
 
   async function addItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,6 +140,27 @@ export function AdminPanel({
     }
   }
 
+  async function uploadFavicon(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFaviconUploading(true);
+    setFaviconSaved(false);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/favicon", { method: "POST", body: fd });
+    setFaviconUploading(false);
+    if (res.ok) {
+      const data = (await res.json()) as { url: string };
+      setFaviconUrl(data.url);
+      setFaviconSaved(true);
+      setTimeout(() => setFaviconSaved(false), 2000);
+      router.refresh();
+    } else {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error ?? "파비콘 업로드에 실패했습니다.");
+    }
+  }
+
   return (
     <div className="space-y-8">
       {lightbox ? <LightBox src={lightbox} onClose={() => setLightbox(null)} /> : null}
@@ -215,6 +241,37 @@ export function AdminPanel({
         >
           {noticeSaving ? "저장 중..." : noticeSaved ? "저장됨 ✓" : "공지 저장"}
         </button>
+      </section>
+
+      <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
+        <h2 className="font-bold text-black">탭 아이콘 (파비콘)</h2>
+        <p className="mt-1 text-sm text-gray-400">
+          브라우저 탭에 표시되는 아이콘입니다. PNG · JPG · WebP (권장 크기: 64×64 이상 정사각형)
+        </p>
+        <div className="mt-3 flex items-center gap-4">
+          {faviconUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={faviconUrl}
+              alt="현재 파비콘"
+              className="h-12 w-12 rounded-xl object-contain ring-1 ring-black/10"
+            />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-2xl ring-1 ring-black/8">
+              🖼️
+            </div>
+          )}
+          <label className="cursor-pointer rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition">
+            {faviconUploading ? "업로드 중..." : faviconSaved ? "변경됨 ✓" : "이미지 선택"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={uploadFavicon}
+              disabled={faviconUploading}
+            />
+          </label>
+        </div>
       </section>
 
       <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">

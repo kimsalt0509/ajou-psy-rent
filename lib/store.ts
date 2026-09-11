@@ -181,6 +181,19 @@ export async function setNotice(content: string): Promise<void> {
   await db().doc(NOTICE_DOC).set({ content, updatedAt: new Date().toISOString() });
 }
 
+// ─── Favicon ─────────────────────────────────────────────────────────────────
+
+const FAVICON_DOC = "settings/favicon";
+
+export async function getFaviconUrl(): Promise<string | null> {
+  const snap = await db().doc(FAVICON_DOC).get();
+  return (snap.data()?.url as string) ?? null;
+}
+
+export async function setFaviconUrl(url: string): Promise<void> {
+  await db().doc(FAVICON_DOC).set({ url, updatedAt: new Date().toISOString() });
+}
+
 // ─── Stock ───────────────────────────────────────────────────────────────────
 
 export async function getItemsWithStock(): Promise<ItemWithStock[]> {
