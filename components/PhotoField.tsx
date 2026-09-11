@@ -33,7 +33,6 @@ export function PhotoField({ name, label, required = true }: Props) {
           name={name}
           type="file"
           accept="image/*"
-          capture="environment"
           required={required}
           className="w-full cursor-pointer border-t border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600"
           onChange={(event) => {
