@@ -19,13 +19,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const admin = await isAdmin();
   return (
     <html lang="ko" className={`${noto.className} h-full antialiased`}>
-      <body className="min-h-full bg-[#f3f3f3] text-black">
+      <body className="min-h-full bg-[#f3f3f3] text-black flex flex-col">
         <FirebaseAuthProvider>
           <AppHeader isAdmin={admin} />
           <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
             {children}
           </main>
-          <footer className="mx-auto w-full max-w-3xl px-4 py-6 border-t border-black/8 mt-4">
+          <footer className="w-full border-t border-black/8 bg-[#f3f3f3] px-4 py-4">
             <p className="text-xs text-gray-400 text-center leading-relaxed">
               사이트에 문제가 생기면 심리학과 부학생회장 김가람{" "}
               <a href="tel:01064093370" className="underline hover:text-gray-600">
