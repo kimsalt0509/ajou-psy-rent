@@ -3,6 +3,7 @@ import { savePhoto } from "@/lib/photos";
 import { completeReturn, getRentalById } from "@/lib/store";
 import { verifyUser } from "@/lib/auth-helper";
 import { isAdmin } from "@/lib/admin";
+import { sendReturnNotification } from "@/lib/email";
 
 export async function POST(
   request: NextRequest,
@@ -38,6 +39,16 @@ export async function POST(
       returnPhoto,
       returnedAt: new Date().toISOString(),
     });
+
+    // 관리자에게 반납 알림 이메일 (비동기)
+    sendReturnNotification({
+      studentName: rental.studentName,
+      studentId: rental.studentId,
+      itemName: rental.itemName,
+      quantity: rental.quantity,
+      returnedAt: rental.returnedAt!,
+    }).catch(() => {});
+
     return Response.json({ rental });
   } catch (error) {
     const message =

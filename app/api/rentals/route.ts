@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { savePhoto } from "@/lib/photos";
 import { createRental, getItemsWithStock, getRentals } from "@/lib/store";
 import { verifyUser } from "@/lib/auth-helper";
+import { sendRentNotification } from "@/lib/email";
 
 export async function GET(request: NextRequest) {
   const studentId =
@@ -68,6 +69,17 @@ export async function POST(request: NextRequest) {
       returnedAt: null,
       returnPhoto: null,
     });
+
+    // 관리자에게 대여 알림 이메일 (비동기 — 실패해도 대여는 성공)
+    sendRentNotification({
+      studentName,
+      studentId,
+      phone,
+      itemName: rental.itemName || itemId,
+      quantity,
+      dueDate: rental.dueDate,
+      rentedAt: rental.rentedAt,
+    }).catch(() => {});
 
     // itemName을 채워 반환 (createRental 내부 트랜잭션에서도 item 조회하지만 여기선 간단히)
     return Response.json({ rental });
