@@ -1,38 +1,23 @@
-import { ImageResponse } from "next/og";
 import { getFaviconUrl } from "@/lib/store";
 
-export const size = { width: 64, height: 64 };
-export const contentType = "image/png";
 export const dynamic = "force-dynamic";
+
+// size/contentType export를 제거 — metadata의 icons.icon: "/icon" 이 직접 참조
 
 export default async function Icon() {
   const url = await getFaviconUrl();
 
   if (!url) {
-    // 기본 아이콘 (파비콘 미설정 시)
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            background: "black",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontSize: 32,
-          }}
-        >
-          📦
-        </div>
-      ),
-      size,
+    // 기본: 빈 1x1 투명 PNG
+    const transparent1x1 = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64",
     );
+    return new Response(transparent1x1, {
+      headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=60" },
+    });
   }
 
-  // 업로드된 이미지를 fetch해서 반환
   const res = await fetch(url);
   const buffer = await res.arrayBuffer();
 
