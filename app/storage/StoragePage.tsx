@@ -13,6 +13,7 @@ export default function StoragePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   // 창고→재고 이동 팝업
   const [moveTarget, setMoveTarget] = useState<StorageRow | null>(null);
@@ -193,13 +194,35 @@ export default function StoragePage() {
       {/* 창고 물품 목록 */}
       <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
         <h3 className="font-bold text-black">창고 물품 목록</h3>
+
+        {/* 검색 */}
+        <div className="relative mt-3">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="물품 검색..."
+            className="w-full rounded-2xl bg-gray-100 pl-9 pr-4 py-2.5 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10"
+          />
+        </div>
+
         {loading ? (
           <p className="mt-3 text-sm text-gray-400">불러오는 중...</p>
-        ) : storageItems.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-400">등록된 창고 물품이 없습니다.</p>
-        ) : (
-          <ul className="mt-4 space-y-3">
-            {storageItems.map((s) => (
+        ) : (() => {
+          const filtered = query.trim()
+            ? storageItems.filter((s) =>
+                s.name.toLowerCase().includes(query.toLowerCase()) ||
+                s.note?.toLowerCase().includes(query.toLowerCase())
+              )
+            : storageItems;
+          return filtered.length === 0 ? (
+            <p className="mt-3 text-sm text-gray-400">
+              {query.trim() ? "검색 결과가 없습니다." : "등록된 창고 물품이 없습니다."}
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {filtered.map((s) => (
               <li key={s.id} className="flex items-center gap-2 flex-wrap">
                 <span className="text-xl shrink-0">{s.emoji}</span>
                 <div className="flex-1 min-w-0">
@@ -235,9 +258,10 @@ export default function StoragePage() {
                   {deletingId === s.id ? "..." : "삭제"}
                 </button>
               </li>
-            ))}
-          </ul>
-        )}
+              ))}
+            </ul>
+          );
+        })()}
       </section>
 
       {/* 창고 물품 추가 */}
