@@ -47,7 +47,7 @@ export async function POST(
       itemName: rental.itemName,
       quantity: rental.quantity,
       returnedAt: rental.returnedAt!,
-    }).catch(() => {});
+    }).catch((err) => console.error("[email] return notification failed:", err));
 
     return Response.json({ rental });
   } catch (error) {
