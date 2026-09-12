@@ -39,6 +39,7 @@ export async function sendRentNotification(data: {
   quantity: number;
   dueDate: string | null;
   rentedAt: string;
+  studentEmail?: string | null;
 }) {
   if (!ADMIN_EMAILS.length) return;
 
@@ -98,6 +99,44 @@ export async function sendRentNotification(data: {
     `📦 대여 | ${data.studentName} — ${data.itemName} ${data.quantity}개`,
     html,
   );
+
+  // 대여자 본인에게 확인 메일 (관리자 목록에 없는 경우)
+  if (data.studentEmail && !ADMIN_EMAILS.includes(data.studentEmail)) {
+    const studentHtml = `
+<div style="${baseStyle()}">
+  <div style="background:#1a1a1a;padding:20px 24px;border-radius:12px 12px 0 0">
+    <p style="margin:0;font-size:13px;color:#aaa;letter-spacing:1px">아주대 심리학과 학생회</p>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">📦 대여가 완료되었습니다</h1>
+  </div>
+  <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
+    <p style="margin:0 0 16px;font-size:15px;color:#333">
+      안녕하세요, <strong>${data.studentName}</strong>님.<br>
+      물품 대여가 정상적으로 접수되었습니다.
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:10px 0;color:#888;width:100px">물품</td>
+        <td style="padding:10px 0;font-weight:700;color:#111">${data.itemName} ${data.quantity}개</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;color:#888">반납 기한</td>
+        <td style="padding:10px 0;font-weight:600;color:${data.dueDate ? "#2563eb" : "#888"}">${due}</td>
+      </tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:13px;color:#555">
+      반납 문의: 심리학과 부학생회장 김가람 010-6409-3370
+    </p>
+    <p style="margin:12px 0 0;font-size:12px;color:#bbb;text-align:center">
+      아주대학교 심리학과 학생회 물품 대여 시스템
+    </p>
+  </div>
+</div>`;
+    await sendMail(
+      [data.studentEmail],
+      `📦 대여 완료 | ${data.itemName} ${data.quantity}개`,
+      studentHtml,
+    );
+  }
 }
 
 // ─── 반납 알림 ────────────────────────────────────────────────────────────────
@@ -107,6 +146,7 @@ export async function sendReturnNotification(data: {
   itemName: string;
   quantity: number;
   returnedAt: string;
+  studentEmail?: string | null;
 }) {
   if (!ADMIN_EMAILS.length) return;
 
@@ -154,6 +194,41 @@ export async function sendReturnNotification(data: {
     `✅ 반납 | ${data.studentName} — ${data.itemName} ${data.quantity}개`,
     html,
   );
+
+  // 대여자 본인에게 확인 메일
+  if (data.studentEmail && !ADMIN_EMAILS.includes(data.studentEmail)) {
+    const studentHtml = `
+<div style="${baseStyle()}">
+  <div style="background:#166534;padding:20px 24px;border-radius:12px 12px 0 0">
+    <p style="margin:0;font-size:13px;color:#86efac;letter-spacing:1px">아주대 심리학과 학생회</p>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">✅ 반납이 완료되었습니다</h1>
+  </div>
+  <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
+    <p style="margin:0 0 16px;font-size:15px;color:#333">
+      안녕하세요, <strong>${data.studentName}</strong>님.<br>
+      물품 반납이 정상적으로 처리되었습니다. 이용해 주셔서 감사합니다!
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:10px 0;color:#888;width:100px">물품</td>
+        <td style="padding:10px 0;font-weight:700;color:#111">${data.itemName} ${data.quantity}개</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;color:#888">반납 일시</td>
+        <td style="padding:10px 0;color:#111">${returnedAt}</td>
+      </tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:12px;color:#bbb;text-align:center">
+      아주대학교 심리학과 학생회 물품 대여 시스템
+    </p>
+  </div>
+</div>`;
+    await sendMail(
+      [data.studentEmail],
+      `✅ 반납 완료 | ${data.itemName} ${data.quantity}개`,
+      studentHtml,
+    );
+  }
 }
 
 // ─── 반납 기한 초과 알림 ──────────────────────────────────────────────────────
@@ -166,17 +241,16 @@ export async function sendOverdueNotification(data: {
   dueDate: string;
   daysPast: number;
 }) {
-  const recipients = [...ADMIN_EMAILS];
-  if (data.studentEmail && !recipients.includes(data.studentEmail)) {
-    recipients.push(data.studentEmail);
-  }
-  if (!recipients.length) return;
+  if (!ADMIN_EMAILS.length && !data.studentEmail) return;
 
   const dueDate = new Date(data.dueDate).toLocaleDateString("ko-KR", {
     year: "numeric", month: "long", day: "numeric",
   });
 
-  const html = `
+  const subject = `⚠️ 반납 기한 초과 | ${data.studentName} — ${data.itemName} (${data.daysPast}일 경과)`;
+
+  // 관리자용 메일 (학생 정보 포함)
+  const adminHtml = `
 <div style="${baseStyle()}">
   <div style="background:#991b1b;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#fca5a5;letter-spacing:1px">아주대 심리학과 학생회</p>
@@ -187,9 +261,7 @@ export async function sendOverdueNotification(data: {
       <p style="margin:0;font-size:15px;color:#991b1b;font-weight:600">
         반납 기한으로부터 <strong>${data.daysPast}일</strong>이 경과했습니다.
       </p>
-      <p style="margin:6px 0 0;font-size:13px;color:#b91c1c">
-        빠른 시일 내에 반납해 주시기 바랍니다.
-      </p>
+      <p style="margin:6px 0 0;font-size:13px;color:#b91c1c">연락하여 반납을 요청해 주세요.</p>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <tr style="border-bottom:1px solid #f0f0f0">
@@ -215,9 +287,45 @@ export async function sendOverdueNotification(data: {
   </div>
 </div>`;
 
-  await sendMail(
-    recipients,
-    `⚠️ 반납 기한 초과 | ${data.studentName} — ${data.itemName} (${data.daysPast}일 경과)`,
-    html,
-  );
+  // 대여자용 메일 (학생 본인에게 — 간결하고 친절한 안내)
+  const studentHtml = `
+<div style="${baseStyle()}">
+  <div style="background:#991b1b;padding:20px 24px;border-radius:12px 12px 0 0">
+    <p style="margin:0;font-size:13px;color:#fca5a5;letter-spacing:1px">아주대 심리학과 학생회</p>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">⚠️ 반납 기한이 지났습니다</h1>
+  </div>
+  <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
+    <p style="margin:0 0 16px;font-size:15px;color:#333">
+      안녕하세요, <strong>${data.studentName}</strong>님.<br>
+      대여하신 물품의 반납 기한이 <strong>${data.daysPast}일</strong> 지났습니다.<br>
+      빠른 시일 내에 반납해 주시기 바랍니다.
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:10px 0;color:#888;width:100px">물품</td>
+        <td style="padding:10px 0;font-weight:700;color:#111">${data.itemName} ${data.quantity}개</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;color:#888">반납 기한</td>
+        <td style="padding:10px 0;font-weight:700;color:#dc2626">${dueDate}</td>
+      </tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:13px;color:#555">
+      반납 문의: 심리학과 부학생회장 김가람 010-6409-3370
+    </p>
+    <p style="margin:12px 0 0;font-size:12px;color:#bbb;text-align:center">
+      아주대학교 심리학과 학생회 물품 대여 시스템
+    </p>
+  </div>
+</div>`;
+
+  // 관리자에게 발송
+  if (ADMIN_EMAILS.length) {
+    await sendMail(ADMIN_EMAILS, subject, adminHtml);
+  }
+
+  // 대여자 본인에게 발송 (관리자 목록에 없는 경우)
+  if (data.studentEmail && !ADMIN_EMAILS.includes(data.studentEmail)) {
+    await sendMail([data.studentEmail], subject, studentHtml);
+  }
 }
