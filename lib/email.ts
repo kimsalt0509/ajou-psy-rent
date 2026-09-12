@@ -1,12 +1,21 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import nodemailer from "nodemailer";
 
 const ADMIN_EMAILS: string[] = (process.env.ADMIN_EMAIL ?? "")
   .split(",")
   .map((e) => e.trim())
   .filter(Boolean);
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "noreply@ajou-psy-rent.com";
+
+function createTransport() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+}
+
+const FROM = `"아주대 심리학과 학생회" <${process.env.GMAIL_USER}>`;
 
 // ─── 대여 알림 (관리자에게) ───────────────────────────────────────────────────
 export async function sendRentNotification(data: {
@@ -18,15 +27,15 @@ export async function sendRentNotification(data: {
   dueDate: string | null;
   rentedAt: string;
 }) {
-  if (!ADMIN_EMAILS.length || !process.env.RESEND_API_KEY) return;
+  if (!ADMIN_EMAILS.length || !process.env.GMAIL_USER) return;
 
   const due = data.dueDate
     ? new Date(data.dueDate).toLocaleString("ko-KR", { month: "long", day: "numeric" })
     : "기한 없음";
 
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to: ADMIN_EMAILS,
+  await createTransport().sendMail({
+    from: FROM,
+    to: ADMIN_EMAILS.join(","),
     subject: `📦 [대여] ${data.studentName}(${data.studentId}) — ${data.itemName} ${data.quantity}개`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
@@ -54,11 +63,11 @@ export async function sendReturnNotification(data: {
   quantity: number;
   returnedAt: string;
 }) {
-  if (!ADMIN_EMAILS.length || !process.env.RESEND_API_KEY) return;
+  if (!ADMIN_EMAILS.length || !process.env.GMAIL_USER) return;
 
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to: ADMIN_EMAILS,
+  await createTransport().sendMail({
+    from: FROM,
+    to: ADMIN_EMAILS.join(","),
     subject: `✅ [반납] ${data.studentName}(${data.studentId}) — ${data.itemName} ${data.quantity}개`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
@@ -86,7 +95,7 @@ export async function sendOverdueNotification(data: {
   dueDate: string;
   daysPast: number;
 }) {
-  if (!process.env.RESEND_API_KEY) return;
+  if (!process.env.GMAIL_USER) return;
 
   const to: string[] = [...ADMIN_EMAILS];
   if (data.studentEmail && !to.includes(data.studentEmail)) {
@@ -94,12 +103,10 @@ export async function sendOverdueNotification(data: {
   }
   if (to.length === 0) return;
 
-  const subject = `⚠️ [반납 기한 초과] ${data.studentName}(${data.studentId}) — ${data.itemName} (${data.daysPast}일 경과)`;
-
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to,
-    subject,
+  await createTransport().sendMail({
+    from: FROM,
+    to: to.join(","),
+    subject: `⚠️ [반납 기한 초과] ${data.studentName}(${data.studentId}) — ${data.itemName} (${data.daysPast}일 경과)`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
         <h2 style="margin:0 0 8px;font-size:18px;color:#dc2626">⚠️ 반납 기한이 지났습니다</h2>
