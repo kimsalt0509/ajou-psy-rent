@@ -144,7 +144,9 @@ export async function createRental(
     tx.set(rentalRef, { ...data, dueDate, itemName: item.name });
   });
 
-  return { id: rentalRef.id, ...data };
+  // Firestore에 저장된 실제 값(itemName, dueDate)을 읽어서 반환
+  const saved = await rentalRef.get();
+  return { id: rentalRef.id, ...(saved.data() as Omit<Rental, "id">) };
 }
 
 export async function getRentalById(id: string): Promise<Rental | null> {

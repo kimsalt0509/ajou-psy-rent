@@ -106,21 +106,26 @@ export async function sendRentNotification(data: {
 <div style="${baseStyle()}">
   <div style="background:#1a1a1a;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#aaa;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">📦 대여가 완료되었습니다</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">📦 대여 접수 확인</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 16px;font-size:15px;color:#333">
       안녕하세요, <strong>${data.studentName}</strong>님.<br>
-      물품 대여가 정상적으로 접수되었습니다.
+      아래 물품 대여가 정상적으로 접수되었습니다.
     </p>
+    <div style="background:#f8f8f8;border-radius:10px;padding:16px 20px;margin-bottom:16px;text-align:center">
+      <p style="margin:0;font-size:13px;color:#888">대여 물품</p>
+      <p style="margin:6px 0 0;font-size:22px;font-weight:700;color:#111">${data.itemName}</p>
+      <p style="margin:4px 0 0;font-size:15px;color:#555">${data.quantity}개</p>
+    </div>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <tr style="border-bottom:1px solid #f0f0f0">
-        <td style="padding:10px 0;color:#888;width:100px">물품</td>
-        <td style="padding:10px 0;font-weight:700;color:#111">${data.itemName} ${data.quantity}개</td>
+        <td style="padding:10px 0;color:#888;width:90px">반납 기한</td>
+        <td style="padding:10px 0;font-weight:600;color:${data.dueDate ? "#2563eb" : "#888"}">${due}</td>
       </tr>
       <tr>
-        <td style="padding:10px 0;color:#888">반납 기한</td>
-        <td style="padding:10px 0;font-weight:600;color:${data.dueDate ? "#2563eb" : "#888"}">${due}</td>
+        <td style="padding:10px 0;color:#888">대여 일시</td>
+        <td style="padding:10px 0;color:#555">${new Date(data.rentedAt).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
       </tr>
     </table>
     <p style="margin:20px 0 0;font-size:13px;color:#555">
@@ -133,7 +138,7 @@ export async function sendRentNotification(data: {
 </div>`;
     await sendMail(
       [data.studentEmail],
-      `📦 대여 완료 | ${data.itemName} ${data.quantity}개`,
+      `📦 대여 완료 — ${data.itemName} ${data.quantity}개 (반납 기한: ${due})`,
       studentHtml,
     );
   }
