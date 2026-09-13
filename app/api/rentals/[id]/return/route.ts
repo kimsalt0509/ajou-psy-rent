@@ -48,6 +48,7 @@ export async function POST(
         itemName: rental.itemName,
         quantity: rental.quantity,
         returnedAt: rental.returnedAt!,
+        dueDate: rental.dueDate ?? null,
         studentEmail: user.email ?? null,
       });
     } catch (err) {

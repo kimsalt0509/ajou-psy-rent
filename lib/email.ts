@@ -172,6 +172,7 @@ export async function sendReturnNotification(data: {
   itemName: string;
   quantity: number;
   returnedAt: string;
+  dueDate?: string | null;
   studentEmail?: string | null;
 }) {
   if (!ADMIN_EMAILS.length) return;
@@ -181,6 +182,19 @@ export async function sendReturnNotification(data: {
     hour: "2-digit", minute: "2-digit",
   });
 
+  // 기한 초과 여부 계산
+  const isLate = (() => {
+    if (!data.dueDate) return false;
+    const grace = new Date(data.dueDate);
+    grace.setDate(grace.getDate() + 1);
+    grace.setHours(0, 0, 0, 0);
+    return new Date(data.returnedAt) >= grace;
+  })();
+
+  const dueDateStr = data.dueDate
+    ? new Date(data.dueDate).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
+    : null;
+
   const html = `
 <div style="${baseStyle()}">
   <div style="background:#166534;padding:20px 24px;border-radius:12px 12px 0 0">
@@ -188,6 +202,7 @@ export async function sendReturnNotification(data: {
     <h1 style="margin:6px 0 0;font-size:20px;color:#fff">반납 완료 알림</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
+    ${isLate ? `<div style="background:#fff7f7;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:20px"><p style="margin:0;font-size:13px;color:#991b1b;font-weight:600">반납 기한(${dueDateStr}) 이후 반납되었습니다.</p></div>` : ""}
     <p style="margin:0 0 20px;font-size:15px;color:#333">
       반납이 정상적으로 처리되었습니다.
     </p>
@@ -215,7 +230,7 @@ export async function sendReturnNotification(data: {
   </div>
 </div>`;
 
-  const text = `[반납 완료] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n반납일시: ${returnedAt}`;
+  const text = `[반납 완료] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n반납일시: ${returnedAt}${isLate ? `\n※ 반납 기한(${dueDateStr}) 이후 반납되었습니다.` : ""}`;
 
   await sendMail(
     ADMIN_EMAILS,
@@ -226,6 +241,19 @@ export async function sendReturnNotification(data: {
 
   // 대여자 본인에게 확인 메일
   if (data.studentEmail && !ADMIN_EMAILS.includes(data.studentEmail)) {
+    // 기한 초과 시 따뜻한 안내 문구
+    const lateNotice = isLate ? `
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px 18px;margin:16px 0">
+      <p style="margin:0;font-size:14px;color:#92400e;font-weight:600;line-height:1.5">
+        이번에 반납 기한이 ${dueDateStr ? `${dueDateStr}이었는데 ` : ""}조금 늦어졌네요 🙂
+      </p>
+      <p style="margin:8px 0 0;font-size:13px;color:#78350f;line-height:1.6">
+        같은 물품을 기다리는 다른 학우들도 있을 수 있으니,<br>
+        다음에는 반납 기한을 맞춰 주시면 정말 감사하겠습니다.<br>
+        이용해 주셔서 고맙습니다!
+      </p>
+    </div>` : "";
+
     const studentHtml = `
 <div style="${baseStyle()}">
   <div style="background:#166534;padding:20px 24px;border-radius:12px 12px 0 0">
@@ -235,7 +263,7 @@ export async function sendReturnNotification(data: {
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 16px;font-size:15px;color:#333">
       안녕하세요, <strong>${data.studentName}</strong>님.<br>
-      물품 반납이 정상적으로 처리되었습니다. 이용해 주셔서 감사합니다!
+      물품 반납이 정상적으로 처리되었습니다.
     </p>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <tr style="border-bottom:1px solid #f0f0f0">
@@ -247,12 +275,15 @@ export async function sendReturnNotification(data: {
         <td style="padding:10px 0;color:#111">${returnedAt}</td>
       </tr>
     </table>
-    <p style="margin:20px 0 0;font-size:12px;color:#bbb;text-align:center">
+    ${lateNotice}
+    <p style="margin:${isLate ? "4px" : "20px"} 0 0;font-size:12px;color:#bbb;text-align:center">
       아주대학교 심리학과 학생회 물품 대여 시스템
     </p>
   </div>
 </div>`;
-    const studentText = `[반납 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 반납이 정상적으로 처리되었습니다. 감사합니다!\n\n반납 일시: ${returnedAt}`;
+    const studentText = isLate
+      ? `[반납 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 반납이 완료되었습니다.\n\n이번에 반납 기한이 ${dueDateStr ? `${dueDateStr}이었는데 ` : ""}조금 늦어졌네요.\n같은 물품을 기다리는 다른 학우들도 있을 수 있으니, 다음에는 반납 기한을 맞춰 주시면 정말 감사하겠습니다!\n\n반납 일시: ${returnedAt}`
+      : `[반납 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 반납이 정상적으로 처리되었습니다. 감사합니다!\n\n반납 일시: ${returnedAt}`;
     await sendMail(
       [data.studentEmail],
       `[반납 완료] ${data.itemName} ${data.quantity}개`,
