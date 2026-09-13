@@ -40,15 +40,19 @@ export async function POST(
       returnedAt: new Date().toISOString(),
     });
 
-    // 관리자에게 반납 알림 이메일 (비동기)
-    sendReturnNotification({
-      studentName: rental.studentName,
-      studentId: rental.studentId,
-      itemName: rental.itemName,
-      quantity: rental.quantity,
-      returnedAt: rental.returnedAt!,
-      studentEmail: user.email ?? null,
-    }).catch((err) => console.error("[email] return notification failed:", err));
+    // 이메일 알림 발송 (Response 반환 전에 완료)
+    try {
+      await sendReturnNotification({
+        studentName: rental.studentName,
+        studentId: rental.studentId,
+        itemName: rental.itemName,
+        quantity: rental.quantity,
+        returnedAt: rental.returnedAt!,
+        studentEmail: user.email ?? null,
+      });
+    } catch (err) {
+      console.error("[email] return notification failed:", err);
+    }
 
     return Response.json({ rental });
   } catch (error) {
