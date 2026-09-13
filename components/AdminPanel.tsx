@@ -4,10 +4,6 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ItemWithStock } from "@/lib/types";
 
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString("ko-KR");
-}
-
 function LightBox({ src, onClose }: { src: string; onClose: () => void }) {
   return (
     <div
@@ -31,6 +27,15 @@ function LightBox({ src, onClose }: { src: string; onClose: () => void }) {
   );
 }
 
+type EditState = {
+  name: string;
+  emoji: string;
+  total: number;
+  note: string;
+  dueDays: string;
+  consumable: boolean;
+};
+
 export function AdminPanel({
   items,
   notice: initialNotice = "",
@@ -50,6 +55,49 @@ export function AdminPanel({
   const [faviconUrl, setFaviconUrl] = useState<string | null>(initialFaviconUrl);
   const [faviconUploading, setFaviconUploading] = useState(false);
   const [faviconSaved, setFaviconSaved] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editState, setEditState] = useState<EditState | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  function startEdit(item: ItemWithStock) {
+    setEditingId(item.id);
+    setEditState({
+      name: item.name,
+      emoji: item.emoji ?? "",
+      total: item.total,
+      note: item.note ?? "",
+      dueDays: item.dueDays ? String(item.dueDays) : "",
+      consumable: !!item.consumable,
+    });
+  }
+
+  async function saveEdit(id: string) {
+    if (!editState) return;
+    setSavingId(id);
+    setError("");
+    const body: Record<string, unknown> = {
+      name: editState.name.trim(),
+      emoji: editState.emoji.trim(),
+      total: Number(editState.total),
+      note: editState.note.trim(),
+      consumable: editState.consumable,
+      dueDays: editState.dueDays ? Number(editState.dueDays) : null,
+    };
+    const res = await fetch(`/api/items/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setSavingId(null);
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setError(data.error ?? "수정에 실패했습니다.");
+    } else {
+      setEditingId(null);
+      setEditState(null);
+      router.refresh();
+    }
+  }
 
   async function addItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,36 +124,6 @@ export function AdminPanel({
     }
     form.reset();
     router.refresh();
-  }
-
-  async function toggleConsumable(id: string, current: boolean) {
-    setError("");
-    const res = await fetch(`/api/items/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ consumable: !current }),
-    });
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(data.error ?? "수정에 실패했습니다.");
-    } else {
-      router.refresh();
-    }
-  }
-
-  async function saveTotal(id: string, total: number) {
-    setError("");
-    const res = await fetch(`/api/items/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ total }),
-    });
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(data.error ?? "수정에 실패했습니다.");
-    } else {
-      router.refresh();
-    }
   }
 
   async function deleteItem(id: string, name: string) {
@@ -217,50 +235,120 @@ export function AdminPanel({
       <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
         <h2 className="font-bold text-black">물품 목록</h2>
         <p className="mt-1 text-sm text-gray-400">
-          수량 변경은 숫자를 수정하면 자동 저장됩니다.
+          편집 버튼을 눌러 이름·수량·대여 기간 등을 수정할 수 있습니다.
         </p>
         <ul className="mt-4 space-y-3">
-          {items.map((item) => (
-            <li key={item.id} className="flex items-center gap-3">
-              <div className="w-32 shrink-0">
-                <p className="text-sm font-medium text-black">
-                  {item.emoji} {item.name}
-                </p>
-                {item.note ? (
-                  <p className="text-[11px] text-gray-400 leading-tight mt-0.5">{item.note}</p>
-                ) : null}
-              </div>
-              <input
-                type="number"
-                min={item.rented}
-                defaultValue={item.total}
-                className="w-16 rounded-xl bg-gray-100 px-2 py-2 text-sm text-black"
-                onBlur={(e) => {
-                  const value = Number(e.target.value);
-                  if (value !== item.total) saveTotal(item.id, value);
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => toggleConsumable(item.id, !!item.consumable)}
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-                  item.consumable
-                    ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100"
-                    : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                }`}
-              >
-                소모품
-              </button>
-              <button
-                type="button"
-                onClick={() => deleteItem(item.id, item.name)}
-                disabled={deletingId === item.id}
-                className="ml-auto rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-pink-50 hover:text-pink-700 disabled:opacity-40 transition"
-              >
-                {deletingId === item.id ? "삭제 중..." : "삭제"}
-              </button>
-            </li>
-          ))}
+          {items.map((item) =>
+            editingId === item.id && editState ? (
+              /* ── 편집 모드 ── */
+              <li key={item.id} className="rounded-2xl bg-gray-50 p-4 ring-1 ring-black/8 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">이름</label>
+                    <input
+                      value={editState.name}
+                      onChange={(e) => setEditState({ ...editState, name: e.target.value })}
+                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">이모지</label>
+                    <input
+                      value={editState.emoji}
+                      onChange={(e) => setEditState({ ...editState, emoji: e.target.value })}
+                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">보유 수량</label>
+                    <input
+                      type="number"
+                      min={item.rented}
+                      value={editState.total}
+                      onChange={(e) => setEditState({ ...editState, total: Number(e.target.value) })}
+                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">대여 기간 (일, 비워두면 무제한)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={editState.dueDays}
+                      onChange={(e) => setEditState({ ...editState, dueDays: e.target.value })}
+                      placeholder="예: 3"
+                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-500 mb-1 block">비고</label>
+                    <input
+                      value={editState.note}
+                      onChange={(e) => setEditState({ ...editState, note: e.target.value })}
+                      placeholder="보관 위치 등"
+                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editState.consumable}
+                    onChange={(e) => setEditState({ ...editState, consumable: e.target.checked })}
+                    className="h-4 w-4 rounded accent-amber-500"
+                  />
+                  <span className="text-sm text-gray-600">소모품 (반납 불필요)</span>
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => saveEdit(item.id)}
+                    disabled={savingId === item.id}
+                    className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50 transition"
+                  >
+                    {savingId === item.id ? "저장 중..." : "저장"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingId(null); setEditState(null); }}
+                    className="rounded-xl bg-gray-100 px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 transition"
+                  >
+                    취소
+                  </button>
+                </div>
+              </li>
+            ) : (
+              /* ── 일반 표시 모드 ── */
+              <li key={item.id} className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-black truncate">
+                    {item.emoji} {item.name}
+                    {item.dueDays ? <span className="ml-1.5 text-xs text-blue-500 font-normal">{item.dueDays}일</span> : null}
+                    {item.consumable ? <span className="ml-1.5 text-xs text-amber-600 font-normal">소모품</span> : null}
+                  </p>
+                  {item.note ? (
+                    <p className="text-[11px] text-gray-400 leading-tight mt-0.5 truncate">{item.note}</p>
+                  ) : null}
+                  <p className="text-[11px] text-gray-400 mt-0.5">보유 {item.total}개 · 대여 중 {item.rented}개</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => startEdit(item)}
+                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 transition"
+                >
+                  편집
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteItem(item.id, item.name)}
+                  disabled={deletingId === item.id}
+                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-pink-50 hover:text-pink-700 disabled:opacity-40 transition"
+                >
+                  {deletingId === item.id ? "삭제 중..." : "삭제"}
+                </button>
+              </li>
+            )
+          )}
         </ul>
       </section>
 

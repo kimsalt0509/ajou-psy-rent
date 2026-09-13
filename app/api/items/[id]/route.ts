@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   deleteItem,
   getActiveRentalCountForItem,
@@ -29,6 +30,7 @@ export async function PATCH(
     total?: number;
     note?: string;
     consumable?: boolean;
+    dueDays?: number | null;
   };
 
   try {
@@ -44,6 +46,15 @@ export async function PATCH(
       patch.emoji = body.emoji.trim();
     if (typeof body.note === "string") patch.note = body.note.trim();
     if (typeof body.consumable === "boolean") patch.consumable = body.consumable;
+
+    if ("dueDays" in body) {
+      if (body.dueDays != null && Number(body.dueDays) > 0) {
+        (patch as Record<string, unknown>).dueDays = Number(body.dueDays);
+      } else {
+        // 비어있으면 Firestore 필드 삭제
+        (patch as Record<string, unknown>).dueDays = FieldValue.delete();
+      }
+    }
 
     if (body.total !== undefined) {
       const total = Number(body.total);
