@@ -15,14 +15,30 @@ function createTransport() {
   });
 }
 
-const FROM = `"아주대 심리학과 학생회 대여" <${process.env.GMAIL_USER}>`;
+const FROM = `"아주대 심리학과 물품 대여" <${process.env.GMAIL_USER}>`;
 
 // 수신자별 개별 발송 (Gmail 대량 수신 제한 방지)
-async function sendMail(recipients: string[], subject: string, html: string) {
+async function sendMail(
+  recipients: string[],
+  subject: string,
+  html: string,
+  text: string,
+) {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return;
   const transport = createTransport();
   for (const to of recipients) {
-    await transport.sendMail({ from: FROM, to, subject, html });
+    await transport.sendMail({
+      from: FROM,
+      to,
+      subject,
+      html,
+      text,
+      // 스팸 필터 개선: 수신 거부 헤더 명시
+      headers: {
+        "List-Unsubscribe": `<mailto:${process.env.GMAIL_USER}?subject=unsubscribe>`,
+        "X-Mailer": "ajou-psy-rent",
+      },
+    });
   }
 }
 
@@ -56,7 +72,7 @@ export async function sendRentNotification(data: {
 <div style="${baseStyle()}">
   <div style="background:#1a1a1a;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#aaa;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">📦 대여 접수 알림</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">대여 접수 알림</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 20px;font-size:15px;color:#333">
@@ -94,10 +110,13 @@ export async function sendRentNotification(data: {
   </div>
 </div>`;
 
+  const text = `[대여 접수] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n전화: ${data.phone}\n대여일시: ${rentedAt}\n반납기한: ${due}`;
+
   await sendMail(
     ADMIN_EMAILS,
-    `📦 대여 | ${data.studentName} — ${data.itemName} ${data.quantity}개`,
+    `[대여] ${data.studentName} - ${data.itemName} ${data.quantity}개`,
     html,
+    text,
   );
 
   // 대여자 본인에게 확인 메일 (관리자 목록에 없는 경우)
@@ -106,7 +125,7 @@ export async function sendRentNotification(data: {
 <div style="${baseStyle()}">
   <div style="background:#1a1a1a;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#aaa;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">📦 대여 접수 확인</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">대여 접수 확인</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 16px;font-size:15px;color:#333">
@@ -136,10 +155,12 @@ export async function sendRentNotification(data: {
     </p>
   </div>
 </div>`;
+    const studentText = `[대여 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 대여가 정상적으로 접수되었습니다.\n\n반납 기한: ${due}\n대여 일시: ${rentedAt}\n\n반납 문의: 김가람 010-6409-3370`;
     await sendMail(
       [data.studentEmail],
-      `📦 대여 완료 — ${data.itemName} ${data.quantity}개 (반납 기한: ${due})`,
+      `[대여 완료] ${data.itemName} ${data.quantity}개 (반납 기한: ${due})`,
       studentHtml,
+      studentText,
     );
   }
 }
@@ -164,7 +185,7 @@ export async function sendReturnNotification(data: {
 <div style="${baseStyle()}">
   <div style="background:#166534;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#86efac;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">✅ 반납 완료 알림</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">반납 완료 알림</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 20px;font-size:15px;color:#333">
@@ -194,10 +215,13 @@ export async function sendReturnNotification(data: {
   </div>
 </div>`;
 
+  const text = `[반납 완료] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n반납일시: ${returnedAt}`;
+
   await sendMail(
     ADMIN_EMAILS,
-    `✅ 반납 | ${data.studentName} — ${data.itemName} ${data.quantity}개`,
+    `[반납] ${data.studentName} - ${data.itemName} ${data.quantity}개`,
     html,
+    text,
   );
 
   // 대여자 본인에게 확인 메일
@@ -206,7 +230,7 @@ export async function sendReturnNotification(data: {
 <div style="${baseStyle()}">
   <div style="background:#166534;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#86efac;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">✅ 반납이 완료되었습니다</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">반납이 완료되었습니다</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 16px;font-size:15px;color:#333">
@@ -228,10 +252,12 @@ export async function sendReturnNotification(data: {
     </p>
   </div>
 </div>`;
+    const studentText = `[반납 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 반납이 정상적으로 처리되었습니다. 감사합니다!\n\n반납 일시: ${returnedAt}`;
     await sendMail(
       [data.studentEmail],
-      `✅ 반납 완료 | ${data.itemName} ${data.quantity}개`,
+      `[반납 완료] ${data.itemName} ${data.quantity}개`,
       studentHtml,
+      studentText,
     );
   }
 }
@@ -252,14 +278,15 @@ export async function sendOverdueNotification(data: {
     year: "numeric", month: "long", day: "numeric",
   });
 
-  const subject = `⚠️ 반납 기한 초과 | ${data.studentName} — ${data.itemName} (${data.daysPast}일 경과)`;
+  const adminSubject = `[반납 기한 초과] ${data.studentName} - ${data.itemName} (${data.daysPast}일 경과)`;
+  const studentSubject = `[반납 요청] ${data.itemName} 반납 기한이 ${data.daysPast}일 지났습니다`;
 
   // 관리자용 메일 (학생 정보 포함)
   const adminHtml = `
 <div style="${baseStyle()}">
   <div style="background:#991b1b;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#fca5a5;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">⚠️ 반납 기한 초과 알림</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">반납 기한 초과 알림</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <div style="background:#fff7f7;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin-bottom:20px">
@@ -292,12 +319,14 @@ export async function sendOverdueNotification(data: {
   </div>
 </div>`;
 
-  // 대여자용 메일 (학생 본인에게 — 간결하고 친절한 안내)
+  const adminText = `[반납 기한 초과] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n반납기한: ${dueDate} (${data.daysPast}일 경과)`;
+
+  // 대여자용 메일 (학생 본인에게 - 간결하고 친절한 안내)
   const studentHtml = `
 <div style="${baseStyle()}">
   <div style="background:#991b1b;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#fca5a5;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">⚠️ 반납 기한이 지났습니다</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">반납 기한이 지났습니다</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 16px;font-size:15px;color:#333">
@@ -324,13 +353,15 @@ export async function sendOverdueNotification(data: {
   </div>
 </div>`;
 
+  const studentText = `[반납 요청] ${data.itemName} 반납 기한이 ${data.daysPast}일 지났습니다\n\n안녕하세요, ${data.studentName}님.\n대여하신 물품의 반납 기한이 ${data.daysPast}일 지났습니다.\n빠른 시일 내에 반납해 주시기 바랍니다.\n\n물품: ${data.itemName} ${data.quantity}개\n반납 기한: ${dueDate}\n\n반납 문의: 김가람 010-6409-3370`;
+
   // 관리자에게 발송
   if (ADMIN_EMAILS.length) {
-    await sendMail(ADMIN_EMAILS, subject, adminHtml);
+    await sendMail(ADMIN_EMAILS, adminSubject, adminHtml, adminText);
   }
 
   // 대여자 본인에게 발송 (관리자 목록에 없는 경우)
   if (data.studentEmail && !ADMIN_EMAILS.includes(data.studentEmail)) {
-    await sendMail([data.studentEmail], subject, studentHtml);
+    await sendMail([data.studentEmail], studentSubject, studentHtml, studentText);
   }
 }
