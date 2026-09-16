@@ -42,11 +42,33 @@ async function sendMail(
   }
 }
 
+// ─── 날짜 포맷 헬퍼 (항상 KST) ───────────────────────────────────────────────
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric", month: "long", day: "numeric",
+  });
+}
+function fmtDateTime(iso: string) {
+  return new Date(iso).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric", month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+function fmtDateTimeShort(iso: string) {
+  return new Date(iso).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
 function baseStyle() {
   return `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#fff`;
 }
 
-// ─── 대여 알림 ────────────────────────────────────────────────────────────────
+
 export async function sendRentNotification(data: {
   studentName: string;
   studentId: string;
@@ -60,13 +82,10 @@ export async function sendRentNotification(data: {
   if (!ADMIN_EMAILS.length) return;
 
   const due = data.dueDate
-    ? new Date(data.dueDate).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
+    ? fmtDate(data.dueDate)
     : "기한 없음";
 
-  const rentedAt = new Date(data.rentedAt).toLocaleString("ko-KR", {
-    year: "numeric", month: "long", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
+  const rentedAt = fmtDateTime(data.rentedAt);
 
   const html = `
 <div style="${baseStyle()}">
@@ -144,7 +163,7 @@ export async function sendRentNotification(data: {
       </tr>
       <tr>
         <td style="padding:10px 0;color:#888">대여 일시</td>
-        <td style="padding:10px 0;color:#555">${new Date(data.rentedAt).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+        <td style="padding:10px 0;color:#555">${fmtDateTimeShort(data.rentedAt)}</td>
       </tr>
     </table>
     <p style="margin:20px 0 0;font-size:13px;color:#555">
@@ -174,13 +193,11 @@ export async function sendReturnNotification(data: {
   returnedAt: string;
   dueDate?: string | null;
   studentEmail?: string | null;
+  returnedByAdmin?: boolean; // 관리자가 대신 반납 처리한 경우
 }) {
   if (!ADMIN_EMAILS.length) return;
 
-  const returnedAt = new Date(data.returnedAt).toLocaleString("ko-KR", {
-    year: "numeric", month: "long", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
+  const returnedAt = fmtDateTime(data.returnedAt);
 
   // 기한 초과 여부 계산
   const isLate = (() => {
@@ -191,9 +208,11 @@ export async function sendReturnNotification(data: {
     return new Date(data.returnedAt) >= grace;
   })();
 
-  const dueDateStr = data.dueDate
-    ? new Date(data.dueDate).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
-    : null;
+  const dueDateStr = data.dueDate ? fmtDateTimeShort(data.dueDate) : null;
+
+  const adminReturnedByNote = data.returnedByAdmin
+    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#1d4ed8">관리자가 대신 반납 처리했습니다.</p></div>`
+    : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#166534">대여자 본인이 직접 반납했습니다.</p></div>`;
 
   const html = `
 <div style="${baseStyle()}">
@@ -202,10 +221,8 @@ export async function sendReturnNotification(data: {
     <h1 style="margin:6px 0 0;font-size:20px;color:#fff">반납 완료 알림</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
-    ${isLate ? `<div style="background:#fff7f7;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:20px"><p style="margin:0;font-size:13px;color:#991b1b;font-weight:600">반납 기한(${dueDateStr}) 이후 반납되었습니다.</p></div>` : ""}
-    <p style="margin:0 0 20px;font-size:15px;color:#333">
-      반납이 정상적으로 처리되었습니다.
-    </p>
+    ${isLate ? `<div style="background:#fff7f7;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#991b1b;font-weight:600">반납 기한(${dueDateStr}) 이후 반납되었습니다.</p></div>` : ""}
+    ${adminReturnedByNote}
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <tr style="border-bottom:1px solid #f0f0f0">
         <td style="padding:10px 0;color:#888;width:100px">물품</td>
@@ -302,9 +319,7 @@ export async function sendOverdueNotification(data: {
 }) {
   if (!ADMIN_EMAILS.length && !data.studentEmail) return;
 
-  const dueDate = new Date(data.dueDate).toLocaleDateString("ko-KR", {
-    year: "numeric", month: "long", day: "numeric",
-  });
+  const dueDate = fmtDate(data.dueDate);
 
   const adminSubject = `[반납 기한 초과] ${data.studentName} - ${data.itemName} (${data.daysPast}일 경과)`;
   const studentSubject = `[반납 요청] ${data.itemName} 반납 기한이 ${data.daysPast}일 지났습니다`;
