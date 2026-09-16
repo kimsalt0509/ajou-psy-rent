@@ -50,7 +50,6 @@ export async function POST(
         returnedAt: rental.returnedAt!,
         dueDate: rental.dueDate ?? null,
         studentEmail: user.email ?? null,
-        returnedByAdmin: admin,
       });
     } catch (err) {
       console.error("[email] return notification failed:", err);

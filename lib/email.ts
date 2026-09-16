@@ -193,7 +193,6 @@ export async function sendReturnNotification(data: {
   returnedAt: string;
   dueDate?: string | null;
   studentEmail?: string | null;
-  returnedByAdmin?: boolean; // 관리자가 대신 반납 처리한 경우
 }) {
   if (!ADMIN_EMAILS.length) return;
 
@@ -210,9 +209,12 @@ export async function sendReturnNotification(data: {
 
   const dueDateStr = data.dueDate ? fmtDateTimeShort(data.dueDate) : null;
 
-  const adminReturnedByNote = data.returnedByAdmin
-    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#1d4ed8">관리자가 대신 반납 처리했습니다.</p></div>`
-    : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#166534">대여자 본인이 직접 반납했습니다.</p></div>`;
+  // 빌린 사람이 관리자 본인인지 여부
+  const rentedByAdmin = !!data.studentEmail && ADMIN_EMAILS.includes(data.studentEmail);
+
+  const adminRenterNote = rentedByAdmin
+    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#1d4ed8">관리자 본인이 빌리고 반납한 건입니다.</p></div>`
+    : `<div style="background:#f8f8f8;border:1px solid #e5e5e5;border-radius:8px;padding:10px 14px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#555">학생이 직접 반납했습니다.</p></div>`;
 
   const html = `
 <div style="${baseStyle()}">
@@ -222,7 +224,7 @@ export async function sendReturnNotification(data: {
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     ${isLate ? `<div style="background:#fff7f7;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#991b1b;font-weight:600">반납 기한(${dueDateStr}) 이후 반납되었습니다.</p></div>` : ""}
-    ${adminReturnedByNote}
+    ${adminRenterNote}
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <tr style="border-bottom:1px solid #f0f0f0">
         <td style="padding:10px 0;color:#888;width:100px">물품</td>
