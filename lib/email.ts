@@ -276,20 +276,21 @@ export async function sendReturnNotification(data: {
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 16px;font-size:15px;color:#333">
       안녕하세요, <strong>${data.studentName}</strong>님.<br>
-      물품 반납이 정상적으로 처리되었습니다.
+      아래 물품 반납이 정상적으로 처리되었습니다.
     </p>
+    <div style="background:#f8f8f8;border-radius:10px;padding:16px 20px;margin-bottom:16px;text-align:center">
+      <p style="margin:0;font-size:13px;color:#888">반납 물품</p>
+      <p style="margin:6px 0 0;font-size:22px;font-weight:700;color:#111">${data.itemName}</p>
+      <p style="margin:4px 0 0;font-size:15px;color:#555">${data.quantity}개</p>
+    </div>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
-      <tr style="border-bottom:1px solid #f0f0f0">
-        <td style="padding:10px 0;color:#888;width:100px">물품</td>
-        <td style="padding:10px 0;font-weight:700;color:#111">${data.itemName} ${data.quantity}개</td>
-      </tr>
       <tr>
-        <td style="padding:10px 0;color:#888">반납 일시</td>
-        <td style="padding:10px 0;color:#111">${returnedAt}</td>
+        <td style="padding:10px 0;color:#888;width:90px">반납 일시</td>
+        <td style="padding:10px 0;color:#555">${returnedAt}</td>
       </tr>
     </table>
     ${lateNotice}
-    <p style="margin:${isLate ? "4px" : "20px"} 0 0;font-size:12px;color:#bbb;text-align:center">
+    <p style="margin:20px 0 0;font-size:12px;color:#bbb;text-align:center">
       아주대학교 심리학과 학생회 물품 대여 시스템
     </p>
   </div>
