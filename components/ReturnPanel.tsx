@@ -220,7 +220,15 @@ export function ReturnPanel({ rentals, isAdmin = false }: { rentals: Rental[]; i
             onSubmit={onSubmit}
             className="space-y-4 rounded-3xl bg-white p-4 ring-1 ring-black/8"
           >
-            <PhotoField name="photo" label="반납 사진 (물품을 제자리에 둔 모습)" />
+            <PhotoField
+              name="photo"
+              label={
+                isAdmin && !isOwn
+                  ? "반납 사진 (선택사항 — 관리자 강제 반납)"
+                  : "반납 사진 (물품을 제자리에 둔 모습)"
+              }
+              required={isOwn}
+            />
             {error ? (
               <p className="rounded-xl bg-pink-50 px-3 py-2 text-sm text-pink-800 ring-1 ring-pink-200">
                 {error}

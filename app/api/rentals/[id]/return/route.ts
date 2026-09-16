@@ -30,11 +30,18 @@ export async function POST(
   const form = await request.formData();
   const photo = form.get("photo");
 
-  if (!(photo instanceof File))
+  // 본인 반납은 사진 필수 / 관리자가 타인 건 강제 반납 시 사진 선택사항
+  const isOwnRental = rental.uid === user.uid;
+  if (isOwnRental && !(photo instanceof File && photo.size > 0))
     return Response.json({ error: "반납 사진을 찍어 주세요." }, { status: 400 });
+  if (!isOwnRental && !admin)
+    return Response.json({ error: "본인의 대여 기록만 반납할 수 있습니다." }, { status: 403 });
 
   try {
-    const returnPhoto = await savePhoto(photo, "return");
+    const returnPhoto =
+      photo instanceof File && photo.size > 0
+        ? await savePhoto(photo, "return")
+        : null;
     const rental = await completeReturn(id, {
       returnPhoto,
       returnedAt: new Date().toISOString(),

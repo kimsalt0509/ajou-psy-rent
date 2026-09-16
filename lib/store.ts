@@ -157,7 +157,7 @@ export async function getRentalById(id: string): Promise<Rental | null> {
 
 export async function completeReturn(
   id: string,
-  returnData: { returnPhoto: string; returnedAt: string },
+  returnData: { returnPhoto: string | null; returnedAt: string },
 ): Promise<Rental> {
   const ref = db().collection(RENTALS).doc(id);
   const snap = await ref.get();
