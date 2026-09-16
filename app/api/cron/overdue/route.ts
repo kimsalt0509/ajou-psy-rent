@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getRentals } from "@/lib/store";
+import { getItems, getRentals } from "@/lib/store";
 import { sendOverdueNotification } from "@/lib/email";
 import { adminAuth } from "@/lib/firebase-admin";
 
@@ -17,11 +17,21 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
-  const rentals = await getRentals({ activeOnly: true });
+  const [rentals, items] = await Promise.all([
+    getRentals({ activeOnly: true }),
+    getItems(),
+  ]);
+
+  // 소모품 itemId 목록
+  const consumableIds = new Set(
+    items.filter((i) => i.consumable).map((i) => i.id),
+  );
 
   // dueDate 다음날 자정을 넘겼을 때만 초과 (당일 저녁까지 반납 허용, +1일 버퍼)
+  // 소모품은 반납 개념 없으므로 제외
   const overdueRentals = rentals.filter((r) => {
     if (!r.dueDate) return false;
+    if (consumableIds.has(r.itemId)) return false;
     const grace = new Date(r.dueDate);
     grace.setDate(grace.getDate() + 1);
     grace.setHours(0, 0, 0, 0);

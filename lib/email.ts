@@ -388,8 +388,8 @@ export async function sendOverdueNotification(data: {
     await sendMail(ADMIN_EMAILS, adminSubject, adminHtml, adminText);
   }
 
-  // 대여자 본인에게 발송 (관리자 목록에 없는 경우)
-  if (data.studentEmail && !ADMIN_EMAILS.includes(data.studentEmail)) {
+  // 대여자 본인에게 발송 (관리자 목록 여부와 무관하게 항상 발송)
+  if (data.studentEmail) {
     await sendMail([data.studentEmail], studentSubject, studentHtml, studentText);
   }
 }
