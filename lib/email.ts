@@ -167,14 +167,14 @@ export async function sendRentNotification(data: {
       </tr>
     </table>
     <p style="margin:20px 0 0;font-size:13px;color:#555">
-      반납 문의: 심리학과 부학생회장 김가람 010-6409-3370
+      문제 발생 시 연락처: 심리학과 부학생회장 김가람 010-6409-3370
     </p>
     <p style="margin:12px 0 0;font-size:12px;color:#bbb;text-align:center">
       아주대학교 심리학과 학생회 물품 대여 시스템
     </p>
   </div>
 </div>`;
-    const studentText = `[대여 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 대여가 정상적으로 접수되었습니다.\n\n반납 기한: ${due}\n대여 일시: ${rentedAt}\n\n반납 문의: 김가람 010-6409-3370`;
+    const studentText = `[대여 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 대여가 정상적으로 접수되었습니다.\n\n반납 기한: ${due}\n대여 일시: ${rentedAt}\n\n문제 발생 시 연락처: 김가람 010-6409-3370`;
     await sendMail(
       [data.studentEmail],
       `[대여 완료] ${data.itemName} ${data.quantity}개 (반납 기한: ${due})`,
@@ -387,7 +387,7 @@ export async function sendOverdueNotification(data: {
       </tr>
     </table>
     <p style="margin:20px 0 0;font-size:13px;color:#555">
-      반납 문의: 심리학과 부학생회장 김가람 010-6409-3370
+      문제 발생 시 연락처: 심리학과 부학생회장 김가람 010-6409-3370
     </p>
     <p style="margin:12px 0 0;font-size:12px;color:#bbb;text-align:center">
       아주대학교 심리학과 학생회 물품 대여 시스템
@@ -395,7 +395,7 @@ export async function sendOverdueNotification(data: {
   </div>
 </div>`;
 
-  const studentText = `[반납 요청] ${data.itemName} 반납 기한이 ${data.daysPast}일 지났습니다\n\n안녕하세요, ${data.studentName}님.\n대여하신 물품의 반납 기한이 ${data.daysPast}일 지났습니다.\n빠른 시일 내에 반납해 주시기 바랍니다.\n\n물품: ${data.itemName} ${data.quantity}개\n반납 기한: ${dueDate}\n\n반납 문의: 김가람 010-6409-3370`;
+  const studentText = `[반납 요청] ${data.itemName} 반납 기한이 ${data.daysPast}일 지났습니다\n\n안녕하세요, ${data.studentName}님.\n대여하신 물품의 반납 기한이 ${data.daysPast}일 지났습니다.\n빠른 시일 내에 반납해 주시기 바랍니다.\n\n물품: ${data.itemName} ${data.quantity}개\n반납 기한: ${dueDate}\n\n문제 발생 시 연락처: 김가람 010-6409-3370`;
 
   // 관리자에게 발송
   if (ADMIN_EMAILS.length) {
