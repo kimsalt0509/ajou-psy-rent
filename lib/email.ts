@@ -91,11 +91,11 @@ export async function sendRentNotification(data: {
 <div style="${baseStyle()}">
   <div style="background:#1a1a1a;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#aaa;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">대여 접수 알림</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">${data.studentName}이(가) 대여했습니다</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     <p style="margin:0 0 20px;font-size:15px;color:#333">
-      새 대여가 접수되었습니다. 아래 내용을 확인해 주세요.
+      <strong>${data.studentName}</strong>이(가) <strong>${data.itemName} ${data.quantity}개</strong>를 대여했습니다.
     </p>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <tr style="border-bottom:1px solid #f0f0f0">
@@ -209,22 +209,19 @@ export async function sendReturnNotification(data: {
 
   const dueDateStr = data.dueDate ? fmtDateTimeShort(data.dueDate) : null;
 
-  // 빌린 사람이 관리자 본인인지 여부
-  const rentedByAdmin = !!data.studentEmail && ADMIN_EMAILS.includes(data.studentEmail);
-
-  const adminRenterNote = rentedByAdmin
-    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#1d4ed8">관리자 본인이 빌리고 반납한 건입니다.</p></div>`
-    : `<div style="background:#f8f8f8;border:1px solid #e5e5e5;border-radius:8px;padding:10px 14px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#555">학생이 직접 반납했습니다.</p></div>`;
+  // 빌린 사람이 관리자 본인인지 여부 — 더 이상 구분 박스 안 씀 (헤드라인으로 충분)
 
   const html = `
 <div style="${baseStyle()}">
   <div style="background:#166534;padding:20px 24px;border-radius:12px 12px 0 0">
     <p style="margin:0;font-size:13px;color:#86efac;letter-spacing:1px">아주대 심리학과 학생회</p>
-    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">반납 완료 알림</h1>
+    <h1 style="margin:6px 0 0;font-size:20px;color:#fff">${data.studentName}이(가) 반납했습니다</h1>
   </div>
   <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px">
     ${isLate ? `<div style="background:#fff7f7;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:16px"><p style="margin:0;font-size:13px;color:#991b1b;font-weight:600">반납 기한(${dueDateStr}) 이후 반납되었습니다.</p></div>` : ""}
-    ${adminRenterNote}
+    <p style="margin:0 0 20px;font-size:15px;color:#333">
+      <strong>${data.studentName}</strong>이(가) <strong>${data.itemName} ${data.quantity}개</strong>를 반납했습니다.
+    </p>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <tr style="border-bottom:1px solid #f0f0f0">
         <td style="padding:10px 0;color:#888;width:100px">물품</td>
