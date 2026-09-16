@@ -4,6 +4,7 @@ import { completeReturn, getRentalById } from "@/lib/store";
 import { verifyUser } from "@/lib/auth-helper";
 import { isAdmin } from "@/lib/admin";
 import { sendReturnNotification } from "@/lib/email";
+import { adminAuth } from "@/lib/firebase-admin";
 
 export async function POST(
   request: NextRequest,
@@ -49,6 +50,17 @@ export async function POST(
 
     // 이메일 알림 발송 (Response 반환 전에 완료)
     try {
+      // 관리자가 강제 반납 시 → 대여자(학생) 이메일을 Firebase Auth에서 조회
+      let studentEmail: string | null = user.email ?? null;
+      if (admin && !isOwnRental) {
+        try {
+          const record = await adminAuth().getUser(rental.uid);
+          studentEmail = record.email ?? null;
+        } catch {
+          // 조회 실패해도 관리자에게는 메일 감
+        }
+      }
+
       await sendReturnNotification({
         studentName: rental.studentName,
         studentId: rental.studentId,
@@ -56,7 +68,7 @@ export async function POST(
         quantity: rental.quantity,
         returnedAt: rental.returnedAt!,
         dueDate: rental.dueDate ?? null,
-        studentEmail: user.email ?? null,
+        studentEmail,
       });
     } catch (err) {
       console.error("[email] return notification failed:", err);
