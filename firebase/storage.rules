@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Firebase Console → Storage → 규칙 탭에 붙여넣고 "게시"
+// 대여·반납 사진과 파비콘은 모두 서버(/api/photos, /icon)가 Admin SDK로 읽어서 전달하므로
+// 외부에서 URL로 직접 여는 것을 전부 막습니다.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

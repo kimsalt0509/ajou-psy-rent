@@ -3,29 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ItemWithStock } from "@/lib/types";
-
-function LightBox({ src, onClose }: { src: string; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-      onClick={onClose}
-    >
-      <button
-        onClick={onClose}
-        className="absolute right-4 top-4 rounded-full bg-white/20 px-3 py-1.5 text-sm text-white hover:bg-white/30"
-      >
-        닫기 ✕
-      </button>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt="확대 사진"
-        className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain"
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
-  );
-}
+import { readResponse } from "./FirebaseAuthProvider";
 
 type EditState = {
   name: string;
@@ -51,7 +29,6 @@ export function AdminPanel({
   const [notice, setNotice] = useState(initialNotice);
   const [noticeSaving, setNoticeSaving] = useState(false);
   const [noticeSaved, setNoticeSaved] = useState(false);
-  const [lightbox, setLightbox] = useState<string | null>(null);
   const [faviconUrl, setFaviconUrl] = useState<string | null>(initialFaviconUrl);
   const [faviconUploading, setFaviconUploading] = useState(false);
   const [faviconSaved, setFaviconSaved] = useState(false);
@@ -89,7 +66,7 @@ export function AdminPanel({
       body: JSON.stringify(body),
     });
     setSavingId(null);
-    const data = (await res.json()) as { error?: string };
+    const data = await readResponse(res);
     if (!res.ok) {
       setError(data.error ?? "수정에 실패했습니다.");
     } else {
@@ -117,7 +94,7 @@ export function AdminPanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = (await res.json()) as { error?: string };
+    const data = await readResponse(res);
     if (!res.ok) {
       setError(data.error ?? "추가에 실패했습니다.");
       return;
@@ -131,7 +108,7 @@ export function AdminPanel({
     setError("");
     setDeletingId(id);
     const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
-    const data = (await res.json()) as { error?: string };
+    const data = await readResponse(res);
     setDeletingId(null);
     if (!res.ok) {
       setError(data.error ?? "삭제에 실패했습니다.");
@@ -153,7 +130,7 @@ export function AdminPanel({
       setNoticeSaved(true);
       setTimeout(() => setNoticeSaved(false), 2000);
     } else {
-      const data = (await res.json()) as { error?: string };
+      const data = await readResponse(res);
       setError(data.error ?? "공지 저장에 실패했습니다.");
     }
   }
@@ -168,21 +145,19 @@ export function AdminPanel({
     const res = await fetch("/api/favicon", { method: "POST", body: fd });
     setFaviconUploading(false);
     if (res.ok) {
-      const data = (await res.json()) as { url: string };
+      const data = await readResponse<{ url: string }>(res);
       setFaviconUrl(data.url);
       setFaviconSaved(true);
       setTimeout(() => setFaviconSaved(false), 2000);
       router.refresh();
     } else {
-      const data = (await res.json()) as { error?: string };
+      const data = await readResponse(res);
       setError(data.error ?? "파비콘 업로드에 실패했습니다.");
     }
   }
 
   return (
     <div className="space-y-8">
-      {lightbox ? <LightBox src={lightbox} onClose={() => setLightbox(null)} /> : null}
-
       {/* 관리자 가이드 */}
       <section className="rounded-3xl bg-gray-900 p-5 text-white space-y-4">
         <div>
@@ -222,12 +197,12 @@ export function AdminPanel({
           </div>
         </div>
         <p className="text-xs text-white/30">
-          관리자 비밀번호를 바꾸려면 개발자에게 문의하세요.
+          관리자 비밀번호는 Vercel 환경변수 ADMIN_PIN으로 관리됩니다. 바꾸면 모든 관리자 세션이 로그아웃됩니다.
         </p>
       </section>
 
       {error ? (
-        <p className="rounded-xl bg-pink-50 px-4 py-3 text-sm text-pink-800 ring-1 ring-pink-200">
+        <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200">
           {error}
         </p>
       ) : null}
@@ -342,7 +317,7 @@ export function AdminPanel({
                   type="button"
                   onClick={() => deleteItem(item.id, item.name)}
                   disabled={deletingId === item.id}
-                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-pink-50 hover:text-pink-700 disabled:opacity-40 transition"
+                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition"
                 >
                   {deletingId === item.id ? "삭제 중..." : "삭제"}
                 </button>
@@ -396,7 +371,7 @@ export function AdminPanel({
             {faviconUploading ? "업로드 중..." : faviconSaved ? "변경됨 ✓" : "이미지 선택"}
             <input
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp"
               className="hidden"
               onChange={uploadFavicon}
               disabled={faviconUploading}

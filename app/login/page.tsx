@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
-import { getClientAuth, getClientDb, googleProvider } from "@/lib/firebase-client";
+import { isPopupCancel, signInWithGoogle } from "@/lib/firebase-client";
 import { useFirebaseAuth } from "@/components/FirebaseAuthProvider";
+
+const DOMAIN = process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN || "";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,21 +21,10 @@ export default function LoginPage() {
     setError("");
     setPending(true);
     try {
-      const result = await signInWithPopup(getClientAuth(), googleProvider);
-      // TODO: 임시 개방 — 추후 @ajou.ac.kr 전용으로 복구
-      // Firestore users 컬렉션에 유저 정보 upsert (최초 로그인 시 생성, 이후 lastLoginAt 갱신)
-      const { uid, email, displayName, photoURL } = result.user;
-      await setDoc(
-        doc(getClientDb(), "users", uid),
-        { uid, email, displayName, photoURL, lastLoginAt: serverTimestamp() },
-        { merge: true },
-      );
+      await signInWithGoogle();
       router.replace("/");
     } catch (err) {
-      const code = (err as { code?: string }).code ?? "";
-      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        // 사용자가 팝업을 닫은 경우 — 에러 표시 안 함
-      } else {
+      if (!isPopupCancel(err)) {
         setError("로그인 중 오류가 발생했습니다. 다시 시도해 주세요.");
         console.error(err);
       }
@@ -59,13 +48,11 @@ export default function LoginPage() {
             아주대학교 심리학과
           </p>
           <h1 className="mt-2 text-2xl font-bold text-black">과방 대여 장부</h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Google 계정으로 로그인하세요.
-          </p>
+          <p className="mt-2 text-sm text-gray-500">Google 계정으로 로그인하세요.</p>
         </div>
 
         {error ? (
-          <div className="rounded-2xl bg-pink-50 border border-pink-200 px-4 py-3 text-sm text-pink-800">
+          <div role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200">
             {error}
           </div>
         ) : null}
@@ -86,7 +73,7 @@ export default function LoginPage() {
             {pending ? "로그인 중..." : "Google로 로그인"}
           </button>
           <p className="text-center text-xs text-gray-400">
-            모든 Google 계정으로 로그인 가능합니다 (임시)
+            {DOMAIN ? `@${DOMAIN} 학교 계정으로 로그인해 주세요.` : "모든 Google 계정으로 로그인 가능합니다."}
           </p>
         </div>
       </div>

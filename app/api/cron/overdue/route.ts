@@ -1,80 +1,83 @@
 import { NextRequest } from "next/server";
-import { getItems, getRentals } from "@/lib/store";
+import { getRentals, getItems, markOverdueNotified, purgeOldRentals } from "@/lib/store";
 import { sendOverdueNotification } from "@/lib/email";
 import { adminAuth } from "@/lib/firebase-admin";
+import { deletePhotoByUrl } from "@/lib/photos";
+import { daysOverdue, isOverdue, kstDateKey } from "@/lib/time";
+import { RETENTION_DAYS } from "@/lib/config";
 
-// Vercel Cron이 호출하는 엔드포인트 — 매일 오전 9시 KST (0시 UTC)
-// vercel.json 에서 cron 설정 필요
+export const maxDuration = 60;
+
+// Vercel Cron이 호출 — 매일 오전 9시 KST (vercel.json: 0 0 * * * UTC)
+// Vercel은 CRON_SECRET 환경변수가 있으면 Authorization: Bearer <CRON_SECRET> 를 붙여 호출합니다.
+
+/** 연체 알림 발송일: 1일차, 3일차, 이후 7일마다 (매일 보내면 스팸이 됨) */
+function shouldNotify(days: number) {
+  return days === 1 || days === 3 || (days > 0 && days % 7 === 0);
+}
 
 export async function GET(request: NextRequest) {
-  // Vercel Cron 인증 헤더 확인 (CRON_SECRET 환경변수로 보호)
-  const authHeader = request.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    console.error("[cron] CRON_SECRET이 설정되지 않아 실행하지 않습니다.");
+    return Response.json({ error: "CRON_SECRET not configured" }, { status: 503 });
+  }
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const now = new Date();
-  const [rentals, items] = await Promise.all([
-    getRentals({ activeOnly: true }),
-    getItems(),
-  ]);
+  const today = kstDateKey(now);
+  const [rentals, items] = await Promise.all([getRentals({ activeOnly: true }), getItems()]);
+  const consumableIds = new Set(items.filter((i) => i.consumable).map((i) => i.id));
 
-  // 소모품 itemId 목록
-  const consumableIds = new Set(
-    items.filter((i) => i.consumable).map((i) => i.id),
+  const targets = rentals.filter(
+    (r) =>
+      r.dueDate &&
+      !consumableIds.has(r.itemId) &&
+      isOverdue(r.dueDate, now) &&
+      r.overdueNotifiedOn !== today &&
+      shouldNotify(daysOverdue(r.dueDate, now)),
   );
 
-  // dueDate 다음날 자정을 넘겼을 때만 초과 (당일 저녁까지 반납 허용, +1일 버퍼)
-  // 소모품은 반납 개념 없으므로 제외
-  const overdueRentals = rentals.filter((r) => {
-    if (!r.dueDate) return false;
-    if (consumableIds.has(r.itemId)) return false;
-    const grace = new Date(r.dueDate);
-    grace.setDate(grace.getDate() + 1);
-    grace.setHours(0, 0, 0, 0);
-    return now >= grace;
-  });
-
-  if (overdueRentals.length === 0) {
-    return Response.json({ sent: 0 });
-  }
-
-  // Firebase Auth에서 uid → email 조회
-  const auth = adminAuth();
   let sent = 0;
-
-  for (const rental of overdueRentals) {
+  for (const rental of targets) {
     try {
-      let studentEmail: string | null = null;
-      try {
-        const userRecord = await auth.getUser(rental.uid);
-        studentEmail = userRecord.email ?? null;
-      } catch {
-        // uid로 사용자 조회 실패해도 관리자에게는 보냄
-      }
-
-      const dueDate = rental.dueDate!;
-      const daysPast = Math.floor(
-        (now.getTime() - new Date(dueDate).getTime()) / (1000 * 60 * 60 * 24),
-      );
+      const studentEmail = await adminAuth()
+        .getUser(rental.uid)
+        .then((u) => u.email ?? null)
+        .catch(() => null); // 조회 실패해도 관리자에게는 발송
 
       await sendOverdueNotification({
         studentName: rental.studentName,
         studentId: rental.studentId,
+        phone: rental.phone,
         studentEmail,
         itemName: rental.itemName,
         quantity: rental.quantity,
-        dueDate,
-        daysPast,
+        dueDate: rental.dueDate!,
+        daysPast: daysOverdue(rental.dueDate!, now),
       });
+      await markOverdueNotified(rental.id, today);
       sent++;
-    } catch {
-      // 개별 발송 실패는 무시하고 계속
+    } catch (err) {
+      console.error(`[cron] overdue mail failed for ${rental.id}:`, err);
     }
   }
 
-  return Response.json({ sent, total: overdueRentals.length });
+  // 개인정보 보관기간이 지난 반납 기록 정리 (RETENTION_DAYS 설정 시에만)
+  let purged = 0;
+  if (RETENTION_DAYS > 0) {
+    const cutoff = new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    purged = await purgeOldRentals(cutoff, deletePhotoByUrl).catch((err) => {
+      console.error("[cron] purge failed:", err);
+      return 0;
+    });
+  }
+
+  const overdueTotal = rentals.filter(
+    (r) => !consumableIds.has(r.itemId) && isOverdue(r.dueDate, now),
+  ).length;
+
+  return Response.json({ sent, overdue: overdueTotal, purged });
 }

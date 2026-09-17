@@ -1,18 +1,16 @@
 import { RentForm } from "@/components/RentForm";
 import { getItemsWithStock, getNotice } from "@/lib/store";
+import { RETENTION_DAYS } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
 export default async function RentPage() {
-  const [items, notice] = await Promise.all([
-    getItemsWithStock(),
-    getNotice(),
-  ]);
+  const [items, notice] = await Promise.all([getItemsWithStock(), getNotice()]);
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-bold text-black">대여 기록</h2>
+        <h2 className="text-xl font-bold text-black">대여하기</h2>
         <p className="mt-1 text-sm text-gray-400">
           학번·이름·수량과 물품 사진을 남기면 재고가 바로 줄어듭니다.
         </p>
@@ -23,7 +21,7 @@ export default async function RentPage() {
           <p className="text-sm text-amber-900 whitespace-pre-wrap">{notice}</p>
         </div>
       ) : null}
-      <RentForm items={items} />
+      <RentForm items={items} retentionDays={RETENTION_DAYS} />
     </div>
   );
 }

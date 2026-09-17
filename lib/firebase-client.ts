@@ -1,6 +1,6 @@
 import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { type Auth, GoogleAuthProvider, getAuth } from "firebase/auth";
-import { type Firestore, getFirestore } from "firebase/firestore";
+import { type Auth, GoogleAuthProvider, getAuth, signInWithPopup } from "firebase/auth";
+import { type Firestore, doc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -38,3 +38,21 @@ export function getClientDb(): Firestore {
 }
 
 export const googleProvider = new GoogleAuthProvider();
+
+/** Google 로그인 + users 컬렉션 upsert (헤더·로그인 페이지 공용) */
+export async function signInWithGoogle() {
+  const result = await signInWithPopup(getClientAuth(), googleProvider);
+  const { uid, email, displayName, photoURL } = result.user;
+  // 프로필 기록은 실패해도 로그인 자체는 성공으로 처리
+  await setDoc(
+    doc(getClientDb(), "users", uid),
+    { uid, email, displayName, photoURL, lastLoginAt: serverTimestamp() },
+    { merge: true },
+  ).catch((err) => console.warn("[auth] users upsert failed", err));
+  return result.user;
+}
+
+export function isPopupCancel(err: unknown) {
+  const code = (err as { code?: string })?.code ?? "";
+  return code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request";
+}

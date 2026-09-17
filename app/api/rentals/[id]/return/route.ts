@@ -1,83 +1,71 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { savePhoto } from "@/lib/photos";
 import { completeReturn, getRentalById } from "@/lib/store";
-import { verifyUser } from "@/lib/auth-helper";
+import { unauthorized, verifyUser } from "@/lib/auth-helper";
 import { isAdmin } from "@/lib/admin";
 import { sendReturnNotification } from "@/lib/email";
 import { adminAuth } from "@/lib/firebase-admin";
+import { InputError, errorResponse } from "@/lib/validate";
 
 export async function POST(
   request: NextRequest,
   ctx: RouteContext<"/api/rentals/[id]/return">,
 ) {
   const user = await verifyUser(request);
-  if (!user)
-    return Response.json(
-      { error: "로그인 후 이용할 수 있습니다." },
-      { status: 401 },
-    );
+  if (!user) return unauthorized();
 
   const { id } = await ctx.params;
 
-  // 본인 대여 or 관리자만 반납 가능
-  const rental = await getRentalById(id);
-  if (!rental)
-    return Response.json({ error: "대여 기록을 찾을 수 없습니다." }, { status: 404 });
-
-  const admin = await isAdmin();
-  if (!admin && rental.uid !== user.uid)
-    return Response.json({ error: "본인의 대여 기록만 반납할 수 있습니다." }, { status: 403 });
-
-  const form = await request.formData();
-  const photo = form.get("photo");
-
-  // 본인 반납은 사진 필수 / 관리자가 타인 건 강제 반납 시 사진 선택사항
-  const isOwnRental = rental.uid === user.uid;
-  if (isOwnRental && !(photo instanceof File && photo.size > 0))
-    return Response.json({ error: "반납 사진을 찍어 주세요." }, { status: 400 });
-  if (!isOwnRental && !admin)
-    return Response.json({ error: "본인의 대여 기록만 반납할 수 있습니다." }, { status: 403 });
-
   try {
-    const returnPhoto =
-      photo instanceof File && photo.size > 0
-        ? await savePhoto(photo, "return")
-        : null;
+    const existing = await getRentalById(id);
+    if (!existing)
+      return Response.json({ error: "대여 기록을 찾을 수 없습니다." }, { status: 404 });
+
+    // 본인 대여 or 관리자만 반납 가능
+    const isOwn = existing.uid === user.uid;
+    const admin = await isAdmin();
+    if (!isOwn && !admin)
+      return Response.json({ error: "본인의 대여 기록만 반납할 수 있습니다." }, { status: 403 });
+
+    const form = await request.formData();
+    const photo = form.get("photo");
+    const hasPhoto = photo instanceof File && photo.size > 0;
+
+    // 본인 반납은 사진 필수 / 관리자가 타인 건 강제 반납 시 사진 선택
+    if (isOwn && !hasPhoto) throw new InputError("반납 사진을 찍어 주세요.");
+
+    const returnPhoto = hasPhoto ? await savePhoto(photo, "return") : null;
     const rental = await completeReturn(id, {
       returnPhoto,
       returnedAt: new Date().toISOString(),
+      returnedBy: isOwn ? "self" : "admin",
     });
 
-    // 이메일 알림 발송 (Response 반환 전에 완료)
-    try {
-      // 관리자가 강제 반납 시 → 대여자(학생) 이메일을 Firebase Auth에서 조회
-      let studentEmail: string | null = user.email ?? null;
-      if (admin && !isOwnRental) {
-        try {
-          const record = await adminAuth().getUser(rental.uid);
-          studentEmail = record.email ?? null;
-        } catch {
-          // 조회 실패해도 관리자에게는 메일 감
+    after(async () => {
+      try {
+        let studentEmail: string | null = isOwn ? (user.email ?? null) : null;
+        if (!isOwn) {
+          studentEmail = await adminAuth()
+            .getUser(rental.uid)
+            .then((r) => r.email ?? null)
+            .catch(() => null);
         }
+        await sendReturnNotification({
+          studentName: rental.studentName,
+          studentId: rental.studentId,
+          itemName: rental.itemName,
+          quantity: rental.quantity,
+          returnedAt: rental.returnedAt!,
+          dueDate: rental.dueDate ?? null,
+          studentEmail,
+        });
+      } catch (err) {
+        console.error("[email] return notification failed:", err);
       }
+    });
 
-      await sendReturnNotification({
-        studentName: rental.studentName,
-        studentId: rental.studentId,
-        itemName: rental.itemName,
-        quantity: rental.quantity,
-        returnedAt: rental.returnedAt!,
-        dueDate: rental.dueDate ?? null,
-        studentEmail,
-      });
-    } catch (err) {
-      console.error("[email] return notification failed:", err);
-    }
-
-    return Response.json({ rental });
+    return Response.json({ rental: { id: rental.id, returnedAt: rental.returnedAt } });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "반납에 실패했습니다.";
-    return Response.json({ error: message }, { status: 400 });
+    return errorResponse(error, "반납에 실패했습니다.");
   }
 }

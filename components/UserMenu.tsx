@@ -17,6 +17,7 @@ export function UserMenu({ name, email, image }: Props) {
     await signOut(getClientAuth());
     await fetch("/api/admin/login", { method: "DELETE" });
     router.push("/login");
+    router.refresh();
   }
 
   return (
@@ -25,11 +26,15 @@ export function UserMenu({ name, email, image }: Props) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={image}
-          alt={name}
+          alt=""
+          referrerPolicy="no-referrer"
           className="h-7 w-7 rounded-full object-cover"
         />
       ) : (
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-pink-100 text-xs font-semibold text-pink-700">
+        <div
+          aria-hidden
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700"
+        >
           {name[0]}
         </div>
       )}
@@ -38,6 +43,7 @@ export function UserMenu({ name, email, image }: Props) {
         <p className="text-[10px] text-gray-400 leading-none mt-0.5">{email}</p>
       </div>
       <button
+        type="button"
         onClick={handleSignOut}
         className="ml-1 rounded-xl bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
       >

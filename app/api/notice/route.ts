@@ -1,20 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-import { isAdmin } from "@/lib/admin";
+import { NextRequest } from "next/server";
+import { requireAdmin } from "@/lib/admin";
 import { getNotice, setNotice } from "@/lib/store";
+import * as v from "@/lib/validate";
 
 export async function GET() {
-  const content = await getNotice();
-  return NextResponse.json({ content });
+  return Response.json({ content: await getNotice() });
 }
 
 export async function PUT(request: NextRequest) {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: "관리자 인증이 필요합니다." }, { status: 401 });
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  try {
+    const { content } = await v.readJson(request);
+    if (typeof content !== "string") throw new v.InputError("content 필드가 필요합니다.");
+    await setNotice(v.str(content, "공지", { max: 2000 }));
+    return Response.json({ ok: true });
+  } catch (error) {
+    return v.errorResponse(error, "공지 저장에 실패했습니다.");
   }
-  const { content } = (await request.json()) as { content?: string };
-  if (typeof content !== "string") {
-    return NextResponse.json({ error: "content 필드가 필요합니다." }, { status: 400 });
-  }
-  await setNotice(content);
-  return NextResponse.json({ ok: true });
 }

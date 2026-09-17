@@ -1,97 +1,89 @@
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/admin";
-import { getItems, getRentals } from "@/lib/store";
+import { getReturnableRentals } from "@/lib/store";
+import { daysOverdue, formatKST, isOverdue } from "@/lib/time";
+import type { Rental } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-// dueDate 다음날 자정을 넘겼을 때 초과로 판단 (당일 저녁까지 반납 허용)
-function isOverdue(dueDate: string | null) {
-  if (!dueDate) return false;
-  const grace = new Date(dueDate);
-  grace.setDate(grace.getDate() + 1); // +1일 버퍼
-  grace.setHours(0, 0, 0, 0);        // 다음날 자정
-  return new Date() >= grace;
-}
-
-export default async function StatusPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ done?: string }>;
-}) {
-  if (!(await isAdmin())) redirect("/");
+export default async function StatusPage({ searchParams }: PageProps<"/status">) {
+  if (!(await isAdmin())) redirect("/admin");
 
   const { done } = await searchParams;
-  const [rentals, items] = await Promise.all([
-    getRentals({ activeOnly: true }),
-    getItems(),
-  ]);
+  const activeRentals = await getReturnableRentals(); // 소모품 제외
+  const now = new Date();
+  const overdueRentals = activeRentals
+    .filter((r) => isOverdue(r.dueDate, now))
+    .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
 
-  // 소모품 itemId 목록
-  const consumableIds = new Set(items.filter((i) => i.consumable).map((i) => i.id));
-
-  // 소모품 제외
-  const activeRentals = rentals.filter((r) => !consumableIds.has(r.itemId));
-
-  // 기한 초과 목록
-  const overdueRentals = activeRentals.filter((r) => isOverdue(r.dueDate));
-
-  // 품목별 그룹핑
-  const groups = new Map<string, { itemName: string; rentals: typeof activeRentals }>();
+  const groups = new Map<string, { itemName: string; rentals: Rental[] }>();
   for (const rental of activeRentals) {
-    if (!groups.has(rental.itemId)) {
-      groups.set(rental.itemId, { itemName: rental.itemName, rentals: [] });
-    }
-    groups.get(rental.itemId)!.rentals.push(rental);
+    const g = groups.get(rental.itemId) ?? { itemName: rental.itemName, rentals: [] };
+    g.rentals.push(rental);
+    groups.set(rental.itemId, g);
   }
 
   return (
     <div className="space-y-4">
-      {done === "rent" ? (
-        <p className="rounded-2xl bg-gray-100 px-4 py-3 text-sm text-black">
-          대여가 기록되었습니다. 재고 수량이 바로 반영됩니다.
-        </p>
-      ) : null}
       {done === "return" ? (
-        <p className="rounded-2xl bg-pink-50 px-4 py-3 text-sm text-pink-900 ring-1 ring-pink-200">
+        <p role="status" className="rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-900 ring-1 ring-green-200">
           반납이 완료되었습니다. 다른 사람이 다시 빌릴 수 있습니다.
         </p>
       ) : null}
 
       <div>
         <h2 className="text-xl font-bold text-black">현황</h2>
-        <p className="mt-1 text-sm text-gray-400">현재 대여 중인 물품을 품목별로 확인합니다. 반납 기한이 지난 항목은 상단에 빨간색으로 표시됩니다. 반납되면 이 목록에서 빠집니다.</p>
+        <p className="mt-1 text-sm text-gray-400">
+          현재 대여 중인 물품을 품목별로 확인합니다. 기한(해당일 자정)이 지난 항목은 상단에
+          표시됩니다.
+        </p>
       </div>
 
-      {/* 기한 초과 상단 경고 */}
+      <dl className="grid grid-cols-2 gap-2">
+        <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-black/8">
+          <dt className="text-xs text-gray-400">대여 중</dt>
+          <dd className="text-2xl font-bold text-black">{activeRentals.length}건</dd>
+        </div>
+        <div
+          className={`rounded-2xl px-4 py-3 ring-1 ${overdueRentals.length ? "bg-red-50 ring-red-200" : "bg-white ring-black/8"}`}
+        >
+          <dt className="text-xs text-gray-400">기한 초과</dt>
+          <dd className={`text-2xl font-bold ${overdueRentals.length ? "text-red-600" : "text-black"}`}>
+            {overdueRentals.length}건
+          </dd>
+        </div>
+      </dl>
+
       {overdueRentals.length > 0 ? (
-        <div className="rounded-2xl bg-red-50 p-4 ring-1 ring-red-300">
-          <p className="text-sm font-bold text-red-700 mb-2">
-            ⚠️ 반납 기한 초과 {overdueRentals.length}건 — 즉시 연락 필요
-          </p>
+        <section className="rounded-2xl bg-red-50 p-4 ring-1 ring-red-300">
+          <h3 className="text-sm font-bold text-red-700 mb-2">
+            반납 기한 초과 {overdueRentals.length}건 — 연락 필요
+          </h3>
           <ul className="space-y-2">
             {overdueRentals.map((r) => (
               <li key={r.id} className="rounded-xl bg-red-100 px-3 py-2">
-                <p className="font-semibold text-red-900">{r.studentName}</p>
-                <p className="text-sm text-red-800">{r.itemName} · {r.quantity}개</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-red-900">{r.studentName}</p>
+                  <span className="text-xs font-semibold text-red-700">
+                    {daysOverdue(r.dueDate!, now)}일 경과
+                  </span>
+                </div>
+                <p className="text-sm text-red-800">
+                  {r.itemName} · {r.quantity}개
+                </p>
                 <p className="text-xs text-red-700 mt-0.5">
-                  {r.studentId} · {r.phone}
+                  {r.studentId} ·{" "}
+                  <a href={`tel:${r.phone.replace(/\D/g, "")}`} className="underline">
+                    {r.phone}
+                  </a>
                 </p>
                 <p className="text-xs text-red-600 mt-0.5">
-                  반납 기한 {formatWhen(r.dueDate!)} 초과
+                  반납 기한 {formatKST(r.dueDate!, "date")}
                 </p>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       ) : null}
 
       {activeRentals.length === 0 ? (
@@ -102,10 +94,15 @@ export default async function StatusPage({
         <div className="space-y-4">
           {[...groups.entries()].map(([itemId, group]) => (
             <section key={itemId} className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
-              <h3 className="text-lg font-bold text-black mb-3">{group.itemName}</h3>
+              <h3 className="text-lg font-bold text-black mb-3">
+                {group.itemName}{" "}
+                <span className="text-sm font-normal text-gray-400">
+                  {group.rentals.reduce((s, r) => s + r.quantity, 0)}개 대여 중
+                </span>
+              </h3>
               <ul className="space-y-3">
                 {group.rentals.map((rental) => {
-                  const overdue = isOverdue(rental.dueDate);
+                  const overdue = isOverdue(rental.dueDate, now);
                   return (
                     <li
                       key={rental.id}
@@ -119,18 +116,21 @@ export default async function StatusPage({
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-sm text-gray-700">
-                        {rental.quantity}개 빌림
-                      </p>
+                      <p className="mt-1 text-sm text-gray-700">{rental.quantity}개 빌림</p>
                       <p className="text-sm text-gray-500">
-                        학번 {rental.studentId} · {rental.phone}
+                        학번 {rental.studentId} ·{" "}
+                        <a href={`tel:${rental.phone.replace(/\D/g, "")}`} className="underline">
+                          {rental.phone}
+                        </a>
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {formatWhen(rental.rentedAt)} 대여
+                        {formatKST(rental.rentedAt)} 대여
                       </p>
                       {rental.dueDate ? (
-                        <p className={`text-xs mt-0.5 ${overdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
-                          반납 기한 {formatWhen(rental.dueDate)}
+                        <p
+                          className={`text-xs mt-0.5 ${overdue ? "text-red-500 font-medium" : "text-gray-400"}`}
+                        >
+                          반납 기한 {formatKST(rental.dueDate, "date")}까지
                         </p>
                       ) : null}
                     </li>

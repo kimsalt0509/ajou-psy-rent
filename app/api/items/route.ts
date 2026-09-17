@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { cookies } from "next/headers";
+import { requireAdmin } from "@/lib/admin";
 import { createItem, getItemsWithStock } from "@/lib/store";
+import * as v from "@/lib/validate";
 
 export async function GET() {
   const items = await getItemsWithStock();
@@ -8,39 +9,26 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const store = await cookies();
-  if (store.get("psy-admin")?.value !== "1") {
-    return Response.json(
-      { error: "학생회 관리자만 물품을 추가할 수 있습니다." },
-      { status: 401 },
-    );
+  const denied = await requireAdmin("학생회 관리자만 물품을 추가할 수 있습니다.");
+  if (denied) return denied;
+
+  try {
+    const body = await v.readJson(request);
+    const dueDays =
+      body.dueDays === undefined || body.dueDays === null || body.dueDays === ""
+        ? undefined
+        : v.int(body.dueDays, "대여 기간", { min: 1, max: 365 });
+
+    const item = await createItem({
+      name: v.str(body.name, "물품 이름", { min: 1, max: 40 }),
+      emoji: v.str(body.emoji, "이모지", { max: 16 }) || "📦",
+      total: v.int(body.total, "보유 수량", { min: 0, max: 10000 }),
+      note: v.str(body.note, "비고", { max: 100 }),
+      consumable: body.consumable === true,
+      dueDays,
+    });
+    return Response.json({ item });
+  } catch (error) {
+    return v.errorResponse(error, "추가에 실패했습니다.");
   }
-
-  const body = (await request.json()) as {
-    name?: string;
-    emoji?: string;
-    total?: number;
-    note?: string;
-    consumable?: boolean;
-  };
-
-  const name = body.name?.trim();
-  if (!name)
-    return Response.json({ error: "물품 이름을 입력해 주세요." }, { status: 400 });
-
-  const total = Number(body.total);
-  if (!Number.isInteger(total) || total < 0)
-    return Response.json(
-      { error: "보유 수량은 0 이상의 정수여야 합니다." },
-      { status: 400 },
-    );
-
-  const item = await createItem({
-    name,
-    emoji: body.emoji?.trim() || "📦",
-    total,
-    note: body.note?.trim() || "",
-    consumable: body.consumable ?? false,
-  });
-  return Response.json({ item });
 }

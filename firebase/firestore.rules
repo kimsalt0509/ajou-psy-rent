@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Firebase Console → Firestore Database → 규칙 탭에 붙여넣고 "게시"
+// 서버(Admin SDK)는 규칙과 무관하게 동작하므로, 브라우저에서는 본인 users 문서만 쓸 수 있게 막습니다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'lastLoginAt']);
+      allow delete: if false;
+    }
+
+    // 대여 기록·물품·공지 등 나머지는 모두 서버 API를 통해서만 접근
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

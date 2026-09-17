@@ -1,39 +1,32 @@
-import { NextRequest, NextResponse } from "next/server";
-import { isAdmin } from "@/lib/admin";
+import { NextRequest } from "next/server";
+import { requireAdmin } from "@/lib/admin";
 import { createStorageItem, getStorageItems } from "@/lib/store";
+import * as v from "@/lib/validate";
 
 export async function GET() {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: "관리자 인증이 필요합니다." }, { status: 401 });
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  try {
+    return Response.json({ storage: await getStorageItems() });
+  } catch (error) {
+    return v.errorResponse(error, "창고 목록을 불러오지 못했습니다.");
   }
-  const storage = await getStorageItems();
-  return NextResponse.json({ storage });
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: "관리자 인증이 필요합니다." }, { status: 401 });
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
+  try {
+    const body = await v.readJson(request);
+    const item = await createStorageItem({
+      name: v.str(body.name, "물품 이름", { min: 1, max: 40 }),
+      emoji: v.str(body.emoji, "이모지", { max: 16 }) || "📦",
+      quantity: v.int(body.quantity ?? 0, "수량", { min: 0, max: 100000 }),
+      note: v.str(body.note, "비고", { max: 100 }),
+    });
+    return Response.json({ item });
+  } catch (error) {
+    return v.errorResponse(error, "추가에 실패했습니다.");
   }
-
-  const body = (await request.json()) as {
-    name?: string;
-    emoji?: string;
-    quantity?: number;
-    note?: string;
-  };
-
-  const name = body.name?.trim();
-  if (!name) return NextResponse.json({ error: "물품 이름을 입력해 주세요." }, { status: 400 });
-
-  const quantity = Number(body.quantity ?? 0);
-  if (!Number.isInteger(quantity) || quantity < 0)
-    return NextResponse.json({ error: "수량은 0 이상의 정수여야 합니다." }, { status: 400 });
-
-  const item = await createStorageItem({
-    name,
-    emoji: body.emoji?.trim() || "📦",
-    quantity,
-    note: body.note?.trim() || "",
-  });
-  return NextResponse.json({ item });
 }

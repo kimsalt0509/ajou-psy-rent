@@ -15,14 +15,25 @@ export type Rental = {
   quantity: number;
   studentId: string;
   studentName: string;
-  phone: string;        // 대여자 전화번호
-  uid: string;          // 대여자 Firebase UID
+  phone: string; // 대여자 전화번호
+  uid: string; // 대여자 Firebase UID
   rentedAt: string;
-  dueDate: string | null; // 반납 기한 (ISO). 기간 미설정 물품은 null
-  rentPhoto: string;    // Firebase Storage 공개 URL
+  dueDate: string | null; // 반납 기한 (ISO, KST 기준 해당일 23:59:59). 기간 미설정 물품은 null
+  rentPhoto: string; // Firebase Storage URL (관리자 프록시로만 열람)
   returnedAt: string | null;
-  returnPhoto: string | null; // Firebase Storage 공개 URL
+  returnPhoto: string | null;
+  returnedBy?: "self" | "admin";
+  overdueNotifiedOn?: string; // 마지막 연체 알림 발송일 (KST YYYY-MM-DD)
 };
+
+export type RentalProfile = Pick<Rental, "studentName" | "studentId" | "phone">;
+
+/** 학생 본인에게 내려주는 대여 정보 (타인 개인정보 없음) */
+export type MyRental = Pick<
+  Rental,
+  "id" | "itemId" | "itemName" | "quantity" | "rentedAt" | "dueDate" | "uid"
+> &
+  Partial<Pick<Rental, "studentName" | "studentId" | "phone">>;
 
 export type ItemWithStock = Item & {
   rented: number;

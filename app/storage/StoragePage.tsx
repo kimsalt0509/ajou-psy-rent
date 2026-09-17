@@ -1,10 +1,20 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { readResponse } from "@/components/FirebaseAuthProvider";
 
 type StorageRow = { id: string; name: string; emoji: string; quantity: number; note: string };
 type ItemRow = { id: string; name: string; emoji: string; total: number };
+
+async function fetchAll(): Promise<{ storage: StorageRow[]; items: ItemRow[] }> {
+  const [sRes, iRes] = await Promise.all([fetch("/api/storage"), fetch("/api/items")]);
+  const s = await readResponse<{ storage?: StorageRow[] }>(sRes);
+  const i = await readResponse<{ items?: ItemRow[] }>(iRes);
+  if (!sRes.ok) throw new Error(s.error ?? "창고 목록을 불러오지 못했습니다.");
+  if (!iRes.ok) throw new Error(i.error ?? "재고 목록을 불러오지 못했습니다.");
+  return { storage: s.storage ?? [], items: i.items ?? [] };
+}
 
 export default function StoragePage() {
   const router = useRouter();
@@ -21,16 +31,25 @@ export default function StoragePage() {
   const [moveQty, setMoveQty] = useState(1);
   const [moving, setMoving] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/storage").then((r) => r.json()),
-      fetch("/api/items").then((r) => r.json()),
-    ]).then(([s, i]: [{ storage?: StorageRow[] }, { items?: ItemRow[] }]) => {
-      if (s.storage) setStorageItems(s.storage);
-      if (i.items) setItems(i.items);
-      setLoading(false);
-    });
+  const load = useCallback(() => {
+    fetchAll()
+      .then(({ storage, items }) => {
+        setStorageItems(storage);
+        setItems(items);
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function reload() {
+    setLoading(true);
+    setError("");
+    load();
+  }
 
   async function addItem(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,11 +68,11 @@ export default function StoragePage() {
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      const data = (await res.json()) as { item?: StorageRow };
+      const data = await readResponse<{ item?: StorageRow }>(res);
       if (data.item) setStorageItems((prev) => [...prev, data.item!]);
       (e.target as HTMLFormElement).reset();
     } else {
-      const data = (await res.json()) as { error?: string };
+      const data = await readResponse(res);
       setError(data.error ?? "추가에 실패했습니다.");
     }
   }
@@ -65,7 +84,7 @@ export default function StoragePage() {
       body: JSON.stringify({ quantity }),
     });
     if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
+      const data = await readResponse(res);
       setError(data.error ?? "수정에 실패했습니다.");
     } else {
       setStorageItems((prev) => prev.map((s) => s.id === id ? { ...s, quantity } : s));
@@ -80,43 +99,34 @@ export default function StoragePage() {
     if (res.ok) {
       setStorageItems((prev) => prev.filter((s) => s.id !== id));
     } else {
-      const data = (await res.json()) as { error?: string };
+      const data = await readResponse(res);
       setError(data.error ?? "삭제에 실패했습니다.");
     }
   }
 
   async function moveToStock() {
     if (!moveTarget || !moveItemId || moveQty <= 0) return;
+    if (moveQty > moveTarget.quantity) {
+      setError(`창고에 ${moveTarget.quantity}개만 있습니다.`);
+      return;
+    }
     setMoving(true);
     setError("");
     try {
-      const targetItem = items.find((i) => i.id === moveItemId);
-      if (!targetItem) throw new Error("재고 물품을 찾을 수 없습니다.");
-
-      // 1) 재고 total 증가
-      const res = await fetch(`/api/items/${moveItemId}`, {
-        method: "PATCH",
+      // 창고 차감 + 재고 증가를 서버에서 한 번에 처리 (중간 실패로 수량이 어긋나지 않음)
+      const res = await fetch(`/api/storage/${moveTarget.id}/move`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ total: targetItem.total + moveQty }),
+        body: JSON.stringify({ itemId: moveItemId, quantity: moveQty }),
       });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "재고 수정에 실패했습니다.");
-      }
-
-      // 2) 창고 차감
-      const newStorageQty = Math.max(0, moveTarget.quantity - moveQty);
-      await fetch(`/api/storage/${moveTarget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: newStorageQty }),
-      });
+      const data = await readResponse<{ storageQuantity: number; itemTotal: number }>(res);
+      if (!res.ok) throw new Error(data.error ?? "이동에 실패했습니다.");
 
       setStorageItems((prev) =>
-        prev.map((s) => s.id === moveTarget.id ? { ...s, quantity: newStorageQty } : s)
+        prev.map((s) => (s.id === moveTarget.id ? { ...s, quantity: data.storageQuantity } : s)),
       );
       setItems((prev) =>
-        prev.map((i) => i.id === moveItemId ? { ...i, total: i.total + moveQty } : i)
+        prev.map((i) => (i.id === moveItemId ? { ...i, total: data.itemTotal } : i)),
       );
       setMoveTarget(null);
       router.refresh();
@@ -137,13 +147,16 @@ export default function StoragePage() {
       </div>
 
       {error ? (
-        <p className="rounded-xl bg-pink-50 px-4 py-3 text-sm text-pink-800 ring-1 ring-pink-200">{error}</p>
+        <div role="alert" className="flex items-center justify-between gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200">
+          <span>{error}</span>
+          <button type="button" onClick={reload} className="shrink-0 underline">다시 불러오기</button>
+        </div>
       ) : null}
 
       {/* 재고로 이동 모달 */}
       {moveTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-5 space-y-4 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={() => !moving && setMoveTarget(null)}>
+          <div role="dialog" aria-modal="true" aria-label="재고로 이동" onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-3xl bg-white p-5 space-y-4 shadow-xl">
             <h3 className="font-bold text-black">재고로 이동</h3>
             <p className="text-sm text-gray-500">
               창고 <strong>{moveTarget.emoji} {moveTarget.name}</strong> (현재 {moveTarget.quantity}개)에서
@@ -235,8 +248,13 @@ export default function StoragePage() {
                   defaultValue={s.quantity}
                   key={`qty-${s.id}-${s.quantity}`}
                   className="w-16 rounded-xl bg-gray-100 px-2 py-2 text-sm text-center text-black shrink-0"
+                    aria-label={`${s.name} 창고 수량`}
                   onBlur={(e) => {
                     const val = Number(e.target.value);
+                    if (!Number.isInteger(val) || val < 0) {
+                      e.target.value = String(s.quantity);
+                      return;
+                    }
                     if (val !== s.quantity) updateQty(s.id, val);
                   }}
                 />
@@ -253,7 +271,7 @@ export default function StoragePage() {
                   type="button"
                   onClick={() => handleDelete(s.id, s.name)}
                   disabled={deletingId === s.id}
-                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-pink-50 hover:text-pink-700 disabled:opacity-40 transition"
+                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition"
                 >
                   {deletingId === s.id ? "..." : "삭제"}
                 </button>

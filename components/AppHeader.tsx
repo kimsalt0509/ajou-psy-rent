@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { signInWithPopup } from "firebase/auth";
-import { getClientAuth, googleProvider } from "@/lib/firebase-client";
+import { isPopupCancel, signInWithGoogle } from "@/lib/firebase-client";
 import { useFirebaseAuth } from "./FirebaseAuthProvider";
 import { NavBar } from "./NavBar";
 import { UserMenu } from "./UserMenu";
@@ -13,31 +12,30 @@ export function AppHeader({ isAdmin = false }: { isAdmin?: boolean }) {
 
   async function handleLogin() {
     try {
-      await signInWithPopup(getClientAuth(), googleProvider);
-      router.push("/");
-    } catch {
-      // 팝업 닫힘 등 무시
+      await signInWithGoogle();
+      router.refresh();
+    } catch (err) {
+      if (!isPopupCancel(err)) router.push("/login");
     }
   }
 
   async function handleAdminLogout() {
     await fetch("/api/admin/login", { method: "DELETE" });
+    router.push("/");
     router.refresh();
   }
 
   return (
     <header className="sticky top-0 z-20 border-b border-black/8 bg-white shadow-sm">
       <div className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
             <p className="text-[11px] font-medium tracking-wide text-gray-400 uppercase">
               아주대학교 심리학과 학생회
             </p>
-            <h1 className="text-base font-bold text-black leading-tight">
-              과방 대여 장부
-            </h1>
+            <h1 className="text-base font-bold text-black leading-tight">과방 대여 장부</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {isAdmin ? (
               <button
                 type="button"
@@ -48,7 +46,7 @@ export function AppHeader({ isAdmin = false }: { isAdmin?: boolean }) {
               </button>
             ) : null}
             {loading ? (
-              <div className="h-7 w-20 animate-pulse rounded-xl bg-gray-100" />
+              <div className="h-7 w-20 animate-pulse rounded-xl bg-gray-100" aria-hidden />
             ) : user ? (
               <UserMenu
                 name={user.displayName ?? user.email ?? ""}
