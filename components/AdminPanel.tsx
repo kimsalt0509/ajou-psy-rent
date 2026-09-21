@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ItemWithStock } from "@/lib/types";
 import { readResponse } from "./FirebaseAuthProvider";
+import { photoSrc } from "@/lib/photo-src";
 
 type EditState = {
   name: string;
@@ -358,7 +359,7 @@ export function AdminPanel({
           {faviconUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
-              src={faviconUrl}
+              src={photoSrc(faviconUrl) ?? faviconUrl}
               alt="현재 파비콘"
               className="h-12 w-12 rounded-xl object-contain ring-1 ring-black/10"
             />
