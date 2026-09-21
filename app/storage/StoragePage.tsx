@@ -6,6 +6,7 @@ import { readResponse } from "@/components/FirebaseAuthProvider";
 
 type StorageRow = { id: string; name: string; emoji: string; quantity: number; note: string };
 type ItemRow = { id: string; name: string; emoji: string; total: number };
+type EditState = { name: string; emoji: string; quantity: number; note: string };
 
 async function fetchAll(): Promise<{ storage: StorageRow[]; items: ItemRow[] }> {
   const [sRes, iRes] = await Promise.all([fetch("/api/storage"), fetch("/api/items")]);
@@ -24,6 +25,11 @@ export default function StoragePage() {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+
+  // 편집 상태
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editState, setEditState] = useState<EditState | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   // 창고→재고 이동 팝업
   const [moveTarget, setMoveTarget] = useState<StorageRow | null>(null);
@@ -69,7 +75,9 @@ export default function StoragePage() {
     });
     if (res.ok) {
       const data = await readResponse<{ item?: StorageRow }>(res);
-      if (data.item) setStorageItems((prev) => [...prev, data.item!]);
+      if (data.item) setStorageItems((prev) =>
+        [...prev, data.item!].sort((a, b) => a.name.localeCompare(b.name, "ko"))
+      );
       (e.target as HTMLFormElement).reset();
     } else {
       const data = await readResponse(res);
@@ -88,6 +96,40 @@ export default function StoragePage() {
       setError(data.error ?? "수정에 실패했습니다.");
     } else {
       setStorageItems((prev) => prev.map((s) => s.id === id ? { ...s, quantity } : s));
+    }
+  }
+
+  function startEdit(item: StorageRow) {
+    setEditingId(item.id);
+    setEditState({ name: item.name, emoji: item.emoji, quantity: item.quantity, note: item.note ?? "" });
+  }
+
+  async function saveEdit(id: string) {
+    if (!editState) return;
+    setSavingId(id);
+    setError("");
+    const res = await fetch(`/api/storage/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editState.name.trim(),
+        emoji: editState.emoji.trim(),
+        quantity: editState.quantity,
+        note: editState.note.trim(),
+      }),
+    });
+    setSavingId(null);
+    if (!res.ok) {
+      const data = await readResponse(res);
+      setError(data.error ?? "수정에 실패했습니다.");
+    } else {
+      setStorageItems((prev) =>
+        prev
+          .map((s) => s.id === id ? { ...s, ...editState } : s)
+          .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+      );
+      setEditingId(null);
+      setEditState(null);
     }
   }
 
@@ -204,13 +246,27 @@ export default function StoragePage() {
         </div>
       ) : null}
 
+      {/* 창고 물품 추가 */}
+      <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
+        <h3 className="font-bold text-black">물품 추가</h3>
+        <form onSubmit={addItem} className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input name="name" required placeholder="이름" className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10" />
+          <input name="emoji" placeholder="이모지 (📦)" className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10" />
+          <input name="quantity" type="number" min={0} defaultValue={0} placeholder="수량" className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10" />
+          <input name="note" placeholder="비고 (보관 위치 등)" className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10" />
+          <button className="rounded-xl bg-black py-2 text-sm font-semibold text-white hover:bg-gray-800 transition sm:col-span-2">
+            추가
+          </button>
+        </form>
+      </section>
+
       {/* 창고 물품 목록 */}
       <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
-        <h3 className="font-bold text-black">창고 물품 목록</h3>
+        <h3 className="font-bold text-black">물품 목록</h3>
 
         {/* 검색 */}
         <div className="relative mt-3">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm select-none">🔍</span>
           <input
             type="search"
             value={query}
@@ -221,7 +277,7 @@ export default function StoragePage() {
         </div>
 
         {loading ? (
-          <p className="mt-3 text-sm text-gray-400">불러오는 중...</p>
+          <p className="mt-4 text-sm text-gray-400">불러오는 중...</p>
         ) : (() => {
           const filtered = query.trim()
             ? storageItems.filter((s) =>
@@ -230,70 +286,136 @@ export default function StoragePage() {
               )
             : storageItems;
           return filtered.length === 0 ? (
-            <p className="mt-3 text-sm text-gray-400">
+            <p className="mt-4 text-sm text-gray-400">
               {query.trim() ? "검색 결과가 없습니다." : "등록된 창고 물품이 없습니다."}
             </p>
           ) : (
-            <ul className="mt-4 space-y-3">
-              {filtered.map((s) => (
-              <li key={s.id} className="flex items-center gap-2 flex-wrap">
-                <span className="text-xl shrink-0">{s.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-black">{s.name}</p>
-                  {s.note ? <p className="text-[11px] text-gray-400">{s.note}</p> : null}
-                </div>
-                <input
-                  type="number"
-                  min={0}
-                  defaultValue={s.quantity}
-                  key={`qty-${s.id}-${s.quantity}`}
-                  className="w-16 rounded-xl bg-gray-100 px-2 py-2 text-sm text-center text-black shrink-0"
-                    aria-label={`${s.name} 창고 수량`}
-                  onBlur={(e) => {
-                    const val = Number(e.target.value);
-                    if (!Number.isInteger(val) || val < 0) {
-                      e.target.value = String(s.quantity);
-                      return;
-                    }
-                    if (val !== s.quantity) updateQty(s.id, val);
-                  }}
-                />
-                <span className="text-xs text-gray-400 shrink-0">개</span>
-                <button
-                  type="button"
-                  onClick={() => { setMoveTarget(s); setMoveItemId(""); setMoveQty(1); }}
-                  disabled={s.quantity === 0}
-                  className="shrink-0 rounded-xl bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-30 transition"
-                >
-                  재고로 이동
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(s.id, s.name)}
-                  disabled={deletingId === s.id}
-                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition"
-                >
-                  {deletingId === s.id ? "..." : "삭제"}
-                </button>
-              </li>
+            <ul className="mt-4 divide-y divide-gray-100">
+              {filtered.map((s) =>
+              editingId === s.id && editState ? (
+                /* ── 편집 모드 ── */
+                <li key={s.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="rounded-2xl bg-gray-50 p-4 ring-1 ring-black/8 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">이름</label>
+                        <input
+                          value={editState.name}
+                          onChange={(e) => setEditState({ ...editState, name: e.target.value })}
+                          className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">이모지</label>
+                        <input
+                          value={editState.emoji}
+                          onChange={(e) => setEditState({ ...editState, emoji: e.target.value })}
+                          className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">수량</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={editState.quantity}
+                          onChange={(e) => setEditState({ ...editState, quantity: Number(e.target.value) })}
+                          className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">비고</label>
+                        <input
+                          value={editState.note}
+                          onChange={(e) => setEditState({ ...editState, note: e.target.value })}
+                          placeholder="보관 위치 등"
+                          className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(s.id)}
+                        disabled={savingId === s.id}
+                        className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50 transition"
+                      >
+                        {savingId === s.id ? "저장 중..." : "저장"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(null); setEditState(null); }}
+                        className="rounded-xl bg-gray-100 px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 transition"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ) : (
+                /* ── 일반 표시 모드 ── */
+                <li key={s.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  {/* 이모지 */}
+                  <span className="text-2xl w-8 text-center shrink-0 leading-none">{s.emoji}</span>
+
+                  {/* 이름 + 비고 */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-black truncate">{s.name}</p>
+                    {s.note ? <p className="text-[11px] text-gray-400 leading-tight mt-0.5 truncate">{s.note}</p> : null}
+                  </div>
+
+                  {/* 수량 인라인 편집 */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      type="number"
+                      min={0}
+                      defaultValue={s.quantity}
+                      key={`qty-${s.id}-${s.quantity}`}
+                      aria-label={`${s.name} 창고 수량`}
+                      className="w-14 rounded-xl bg-gray-100 px-2 py-1.5 text-sm text-center text-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                      onBlur={(e) => {
+                        const val = Number(e.target.value);
+                        if (!Number.isInteger(val) || val < 0) {
+                          e.target.value = String(s.quantity);
+                          return;
+                        }
+                        if (val !== s.quantity) updateQty(s.id, val);
+                      }}
+                    />
+                    <span className="text-xs text-gray-400">개</span>
+                  </div>
+
+                  {/* 액션 버튼들 */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(s)}
+                      className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 transition"
+                    >
+                      편집
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setMoveTarget(s); setMoveItemId(""); setMoveQty(1); }}
+                      disabled={s.quantity === 0}
+                      className="rounded-xl bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-30 transition"
+                    >
+                      이동
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(s.id, s.name)}
+                      disabled={deletingId === s.id}
+                      className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition"
+                    >
+                      {deletingId === s.id ? "…" : "삭제"}
+                    </button>
+                  </div>
+                </li>
               ))}
             </ul>
           );
         })()}
-      </section>
-
-      {/* 창고 물품 추가 */}
-      <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
-        <h3 className="font-bold text-black">창고 물품 추가</h3>
-        <form onSubmit={addItem} className="mt-3 grid gap-3 sm:grid-cols-2">
-          <input name="name" required placeholder="물품 이름" className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400" />
-          <input name="emoji" placeholder="이모지 (📦)" className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400" />
-          <input name="quantity" type="number" min={0} defaultValue={0} placeholder="수량" className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400" />
-          <input name="note" placeholder="비고" className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400" />
-          <button className="rounded-xl bg-black py-2 text-sm font-semibold text-white hover:bg-gray-800 transition sm:col-span-2">
-            추가
-          </button>
-        </form>
       </section>
     </div>
   );

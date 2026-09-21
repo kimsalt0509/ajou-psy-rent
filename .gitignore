@@ -38,6 +38,9 @@ yarn-error.log*
 /data/db.json.tmp
 /data/uploads
 
+# local backups (one-time scripts)
+/backup/
+
 # vercel
 .vercel
 
