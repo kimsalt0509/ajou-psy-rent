@@ -37,6 +37,12 @@ export function AdminPanel({
   const [editState, setEditState] = useState<EditState | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
+  // 관리자 가이드 토글 (기본: 접힘)
+  const [guideOpen, setGuideOpen] = useState(false);
+
+  // 물품 목록 검색
+  const [itemQuery, setItemQuery] = useState("");
+
   function startEdit(item: ItemWithStock) {
     setEditingId(item.id);
     setEditState({
@@ -160,46 +166,59 @@ export function AdminPanel({
   return (
     <div className="space-y-8">
       {/* 관리자 가이드 */}
-      <section className="rounded-3xl bg-gray-900 p-5 text-white space-y-4">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-white/40 uppercase">관리자 가이드</p>
-          <h2 className="mt-1 text-base font-bold">처음 사용하신다면 읽어보세요</h2>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-white/10 px-4 py-3">
-            <p className="text-sm font-semibold">📦 관리 탭 (현재 페이지)</p>
-            <p className="mt-1 text-xs text-white/60 leading-relaxed">
-              대여 물품을 추가·삭제하고 보유 수량을 조절합니다. 공지사항을 입력하면 대여 페이지 상단에 표시됩니다. 탭 아이콘도 여기서 변경할 수 있습니다.
+      <section className="rounded-3xl bg-gray-900 text-white overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setGuideOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-5 py-4 hover:bg-white/5 transition"
+        >
+          <div className="text-left">
+            <p className="text-xs font-semibold tracking-widest text-white/40 uppercase">관리자 가이드</p>
+            <p className="mt-0.5 text-base font-bold">처음 사용하신다면 읽어보세요</p>
+          </div>
+          <span className={`text-white/50 text-lg transition-transform duration-200 ${guideOpen ? "rotate-180" : ""}`}>
+            ▾
+          </span>
+        </button>
+        {guideOpen ? (
+          <div className="px-5 pb-5 space-y-4 border-t border-white/10 pt-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-white/10 px-4 py-3">
+                <p className="text-sm font-semibold">📦 관리 탭 (현재 페이지)</p>
+                <p className="mt-1 text-xs text-white/60 leading-relaxed">
+                  대여 물품을 추가·삭제하고 보유 수량을 조절합니다. 공지사항을 입력하면 대여 페이지 상단에 표시됩니다. 탭 아이콘도 여기서 변경할 수 있습니다.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white/10 px-4 py-3">
+                <p className="text-sm font-semibold">📊 현황 탭</p>
+                <p className="mt-1 text-xs text-white/60 leading-relaxed">
+                  지금 대여 중인 물품을 품목별로 확인합니다. 반납 기한이 지난 학생은 빨간색으로 상단에 표시됩니다. 소모품은 표시되지 않습니다.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white/10 px-4 py-3">
+                <p className="text-sm font-semibold">🏭 창고 탭</p>
+                <p className="mt-1 text-xs text-white/60 leading-relaxed">
+                  구매해서 창고에 보관 중인 비축 물품을 관리합니다. &ldquo;재고로 이동&rdquo; 버튼으로 창고 수량을 줄이고 대여 가능한 재고를 늘릴 수 있습니다.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white/10 px-4 py-3">
+                <p className="text-sm font-semibold">📋 기록 탭</p>
+                <p className="mt-1 text-xs text-white/60 leading-relaxed">
+                  모든 대여·반납 기록을 조회합니다. 사진을 클릭하면 크게 볼 수 있고, 학번·연락처도 확인할 수 있습니다.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white/10 px-4 py-3 sm:col-span-2">
+                <p className="text-sm font-semibold">🔄 반납 탭 (관리자 전용 기능)</p>
+                <p className="mt-1 text-xs text-white/60 leading-relaxed">
+                  관리자로 로그인하면 반납 탭에서 학번·이름으로 다른 사람의 대여 기록을 검색하고 대신 반납 처리할 수 있습니다.
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-white/30">
+              관리자 비밀번호는 Vercel 환경변수 ADMIN_PIN으로 관리됩니다. 바꾸면 모든 관리자 세션이 로그아웃됩니다.
             </p>
           </div>
-          <div className="rounded-2xl bg-white/10 px-4 py-3">
-            <p className="text-sm font-semibold">📊 현황 탭</p>
-            <p className="mt-1 text-xs text-white/60 leading-relaxed">
-              지금 대여 중인 물품을 품목별로 확인합니다. 반납 기한이 지난 학생은 빨간색으로 상단에 표시됩니다. 소모품은 표시되지 않습니다.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white/10 px-4 py-3">
-            <p className="text-sm font-semibold">🏭 창고 탭</p>
-            <p className="mt-1 text-xs text-white/60 leading-relaxed">
-              구매해서 창고에 보관 중인 비축 물품을 관리합니다. &ldquo;재고로 이동&rdquo; 버튼으로 창고 수량을 줄이고 대여 가능한 재고를 늘릴 수 있습니다.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white/10 px-4 py-3">
-            <p className="text-sm font-semibold">📋 기록 탭</p>
-            <p className="mt-1 text-xs text-white/60 leading-relaxed">
-              모든 대여·반납 기록을 조회합니다. 사진을 클릭하면 크게 볼 수 있고, 학번·연락처도 확인할 수 있습니다.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white/10 px-4 py-3 sm:col-span-2">
-            <p className="text-sm font-semibold">🔄 반납 탭 (관리자 전용 기능)</p>
-            <p className="mt-1 text-xs text-white/60 leading-relaxed">
-              관리자로 로그인하면 반납 탭에서 학번·이름으로 다른 사람의 대여 기록을 검색하고 대신 반납 처리할 수 있습니다.
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-white/30">
-          관리자 비밀번호는 Vercel 환경변수 ADMIN_PIN으로 관리됩니다. 바꾸면 모든 관리자 세션이 로그아웃됩니다.
-        </p>
+        ) : null}
       </section>
 
       {error ? (
@@ -213,119 +232,146 @@ export function AdminPanel({
         <p className="mt-1 text-sm text-gray-400">
           편집 버튼을 눌러 이름·수량·대여 기간 등을 수정할 수 있습니다.
         </p>
-        <ul className="mt-4 space-y-3">
-          {items.map((item) =>
-            editingId === item.id && editState ? (
-              /* ── 편집 모드 ── */
-              <li key={item.id} className="rounded-2xl bg-gray-50 p-4 ring-1 ring-black/8 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">이름</label>
-                    <input
-                      value={editState.name}
-                      onChange={(e) => setEditState({ ...editState, name: e.target.value })}
-                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">이모지</label>
-                    <input
-                      value={editState.emoji}
-                      onChange={(e) => setEditState({ ...editState, emoji: e.target.value })}
-                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">보유 수량</label>
-                    <input
-                      type="number"
-                      min={item.rented}
-                      value={editState.total}
-                      onChange={(e) => setEditState({ ...editState, total: Number(e.target.value) })}
-                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">대여 기간 (일, 비워두면 무제한)</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={editState.dueDays}
-                      onChange={(e) => setEditState({ ...editState, dueDays: e.target.value })}
-                      placeholder="예: 3"
-                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs text-gray-500 mb-1 block">비고</label>
-                    <input
-                      value={editState.note}
-                      onChange={(e) => setEditState({ ...editState, note: e.target.value })}
-                      placeholder="보관 위치 등"
-                      className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                </div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={editState.consumable}
-                    onChange={(e) => setEditState({ ...editState, consumable: e.target.checked })}
-                    className="h-4 w-4 rounded accent-amber-500"
-                  />
-                  <span className="text-sm text-gray-600">소모품 (반납 불필요)</span>
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => saveEdit(item.id)}
-                    disabled={savingId === item.id}
-                    className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50 transition"
-                  >
-                    {savingId === item.id ? "저장 중..." : "저장"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setEditingId(null); setEditState(null); }}
-                    className="rounded-xl bg-gray-100 px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 transition"
-                  >
-                    취소
-                  </button>
-                </div>
-              </li>
-            ) : (
-              /* ── 일반 표시 모드 ── */
-              <li key={item.id} className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-black truncate">
-                    {item.emoji} {item.name}
-                    {item.dueDays ? <span className="ml-1.5 text-xs text-blue-500 font-normal">{item.dueDays}일</span> : null}
-                    {item.consumable ? <span className="ml-1.5 text-xs text-amber-600 font-normal">소모품</span> : null}
-                  </p>
-                  {item.note ? (
-                    <p className="text-[11px] text-gray-400 leading-tight mt-0.5 truncate">{item.note}</p>
-                  ) : null}
-                  <p className="text-[11px] text-gray-400 mt-0.5">보유 {item.total}개 · 대여 중 {item.rented}개</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => startEdit(item)}
-                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 transition"
-                >
-                  편집
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteItem(item.id, item.name)}
-                  disabled={deletingId === item.id}
-                  className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition"
-                >
-                  {deletingId === item.id ? "삭제 중..." : "삭제"}
-                </button>
-              </li>
-            )
-          )}
-        </ul>
+
+        {/* 검색 */}
+        <div className="relative mt-3">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm select-none">🔍</span>
+          <input
+            type="search"
+            value={itemQuery}
+            onChange={(e) => setItemQuery(e.target.value)}
+            placeholder="물품 검색..."
+            className="w-full rounded-2xl bg-gray-100 pl-9 pr-4 py-2.5 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10"
+          />
+        </div>
+
+        {(() => {
+          const filtered = itemQuery.trim()
+            ? items.filter((item) =>
+                item.name.toLowerCase().includes(itemQuery.toLowerCase()) ||
+                item.note?.toLowerCase().includes(itemQuery.toLowerCase())
+              )
+            : items;
+          return filtered.length === 0 ? (
+            <p className="mt-4 text-sm text-gray-400">검색 결과가 없습니다.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-gray-100">
+              {filtered.map((item) =>
+                editingId === item.id && editState ? (
+                  /* ── 편집 모드 ── */
+                  <li key={item.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="rounded-2xl bg-gray-50 p-4 ring-1 ring-black/8 space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">이름</label>
+                          <input
+                            value={editState.name}
+                            onChange={(e) => setEditState({ ...editState, name: e.target.value })}
+                            className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">이모지</label>
+                          <input
+                            value={editState.emoji}
+                            onChange={(e) => setEditState({ ...editState, emoji: e.target.value })}
+                            className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">보유 수량</label>
+                          <input
+                            type="number"
+                            min={item.rented}
+                            value={editState.total}
+                            onChange={(e) => setEditState({ ...editState, total: Number(e.target.value) })}
+                            className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">대여 기간 (일, 비워두면 무제한)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={editState.dueDays}
+                            onChange={(e) => setEditState({ ...editState, dueDays: e.target.value })}
+                            placeholder="예: 3"
+                            className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-xs text-gray-500 mb-1 block">비고</label>
+                          <input
+                            value={editState.note}
+                            onChange={(e) => setEditState({ ...editState, note: e.target.value })}
+                            placeholder="보관 위치 등"
+                            className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                          />
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={editState.consumable}
+                          onChange={(e) => setEditState({ ...editState, consumable: e.target.checked })}
+                          className="h-4 w-4 rounded accent-amber-500"
+                        />
+                        <span className="text-sm text-gray-600">소모품 (반납 불필요)</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(item.id)}
+                          disabled={savingId === item.id}
+                          className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50 transition"
+                        >
+                          {savingId === item.id ? "저장 중..." : "저장"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingId(null); setEditState(null); }}
+                          className="rounded-xl bg-gray-100 px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 transition"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ) : (
+                  /* ── 일반 표시 모드 ── */
+                  <li key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-black truncate">
+                        {item.emoji} {item.name}
+                        {item.dueDays ? <span className="ml-1.5 text-xs text-blue-500 font-normal">{item.dueDays}일</span> : null}
+                        {item.consumable ? <span className="ml-1.5 text-xs text-amber-600 font-normal">소모품</span> : null}
+                      </p>
+                      {item.note ? (
+                        <p className="text-[11px] text-gray-400 leading-tight mt-0.5 truncate">{item.note}</p>
+                      ) : null}
+                      <p className="text-[11px] text-gray-400 mt-0.5">보유 {item.total}개 · 대여 중 {item.rented}개</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(item)}
+                      className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 transition"
+                    >
+                      편집
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteItem(item.id, item.name)}
+                      disabled={deletingId === item.id}
+                      className="shrink-0 rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition"
+                    >
+                      {deletingId === item.id ? "삭제 중..." : "삭제"}
+                    </button>
+                  </li>
+                )
+              )}
+            </ul>
+          );
+        })()}
       </section>
 
       <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
