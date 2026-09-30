@@ -357,13 +357,13 @@ export async function getItemsWithStock(): Promise<ItemWithStock[]> {
       // variants가 있으면 종류별 재고 계산
       if (item.variants && item.variants.length > 0) {
         const variantStock: Record<string, { rented: number; remaining: number }> = {};
-        // variant당 보유 수량 = total / variants 수 (균등 배분)
-        const perVariant = Math.floor(item.total / item.variants.length);
-        const remainder = item.total % item.variants.length;
-        item.variants.forEach((v, idx) => {
-          const varRented = rentedByVariant.get(`${item.id}::${v}`) ?? 0;
-          const varTotal = perVariant + (idx < remainder ? 1 : 0);
-          variantStock[v] = {
+        // "이름:수량" 파싱. 콜론 없으면 수량 1로 취급
+        item.variants.forEach((v) => {
+          const colonIdx = v.lastIndexOf(":");
+          const label = colonIdx > 0 ? v.slice(0, colonIdx).trim() : v.trim();
+          const varTotal = colonIdx > 0 ? parseInt(v.slice(colonIdx + 1).trim(), 10) || 1 : 1;
+          const varRented = rentedByVariant.get(`${item.id}::${label}`) ?? 0;
+          variantStock[label] = {
             rented: varRented,
             remaining: Math.max(0, varTotal - varRented),
           };

@@ -61,16 +61,26 @@ export function AdminPanel({
     if (!editState) return;
     setSavingId(id);
     setError("");
+    const parsedVariants = editState.variants.trim()
+      ? editState.variants.split(",").map((s) => s.trim()).filter(Boolean)
+      : null;
+
+    // variants가 있으면 total을 수량 합산으로 자동 계산
+    const variantsTotal = parsedVariants
+      ? parsedVariants.reduce((sum, v) => {
+          const colonIdx = v.lastIndexOf(":");
+          return sum + (colonIdx > 0 ? parseInt(v.slice(colonIdx + 1).trim(), 10) || 1 : 1);
+        }, 0)
+      : null;
+
     const body: Record<string, unknown> = {
       name: editState.name.trim(),
       emoji: editState.emoji.trim(),
-      total: Number(editState.total),
+      total: variantsTotal ?? Number(editState.total),
       note: editState.note.trim(),
       consumable: editState.consumable,
       dueDays: editState.dueDays ? Number(editState.dueDays) : null,
-      variants: editState.variants.trim()
-        ? editState.variants.split(",").map((s) => s.trim()).filter(Boolean)
-        : null,
+      variants: parsedVariants,
     };
     const res = await fetch(`/api/items/${id}`, {
       method: "PATCH",
@@ -284,16 +294,21 @@ export function AdminPanel({
                             className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
                           />
                         </div>
-                        <div>
-                          <label className="text-xs text-gray-500 mb-1 block">보유 수량</label>
-                          <input
-                            type="number"
-                            min={item.rented}
-                            value={editState.total}
-                            onChange={(e) => setEditState({ ...editState, total: Number(e.target.value) })}
-                            className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
-                          />
-                        </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">보유 수량</label>
+                        <input
+                          type="number"
+                          min={item.rented}
+                          value={editState.total}
+                          onChange={(e) => setEditState({ ...editState, total: Number(e.target.value) })}
+                          disabled={!!editState.variants.trim()}
+                          title={editState.variants.trim() ? "종류 선택지 수량 합산으로 자동 계산됩니다" : undefined}
+                          className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                        />
+                        {editState.variants.trim() ? (
+                          <p className="mt-1 text-[11px] text-indigo-500">종류 수량 합산으로 자동 계산</p>
+                        ) : null}
+                      </div>
                         <div>
                           <label className="text-xs text-gray-500 mb-1 block">대여 기간 (일, 비워두면 무제한)</label>
                           <input
@@ -326,14 +341,15 @@ export function AdminPanel({
                       </label>
                       <div>
                         <label className="text-xs text-gray-500 mb-1 block">
-                          종류 선택지 <span className="text-gray-400 font-normal">(쉼표로 구분, 없으면 빈칸)</span>
+                          종류 선택지 <span className="text-gray-400 font-normal">(없으면 빈칸)</span>
                         </label>
                         <input
                           value={editState.variants}
                           onChange={(e) => setEditState({ ...editState, variants: e.target.value })}
-                          placeholder="예: 큰 것, 작은 것"
+                          placeholder="예: 큰 것:1, 작은 것:1"
                           className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
                         />
+                        <p className="mt-1 text-[11px] text-gray-400">이름:수량 형식, 쉼표로 구분 (예: 큰 것:1, 작은 것:1)</p>
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -364,7 +380,14 @@ export function AdminPanel({
                         {item.consumable ? <span className="ml-1.5 text-xs text-amber-600 font-normal">소모품</span> : null}
                       </p>
                       {item.variants && item.variants.length > 0 ? (
-                        <p className="text-[11px] text-indigo-500 mt-0.5">종류: {item.variants.join(" / ")}</p>
+                        <p className="text-[11px] text-indigo-500 mt-0.5">
+                          종류: {item.variants.map((v) => {
+                            const colonIdx = v.lastIndexOf(":");
+                            return colonIdx > 0
+                              ? `${v.slice(0, colonIdx).trim()} ${v.slice(colonIdx + 1).trim()}개`
+                              : v.trim();
+                          }).join(" / ")}
+                        </p>
                       ) : null}
                       {item.note ? (
                         <p className="text-[11px] text-gray-400 leading-tight mt-0.5 truncate">{item.note}</p>

@@ -6,7 +6,7 @@ export type Item = {
   note: string;
   consumable?: boolean;
   dueDays?: number; // 대여 기간 (일). 미설정 시 제한 없음
-  variants?: string[]; // 종류 선택지 (예: ["큰 것", "작은 것"]). 대여 시 선택하게 함
+  variants?: string[]; // 종류별 수량 (예: ["큰 것:1", "작은 것:1"]). 대여 시 종류 선택하게 함
 };
 
 export type Rental = {

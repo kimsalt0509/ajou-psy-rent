@@ -215,9 +215,16 @@ export function RentForm({
             className={inputClass}
           >
             <option value="" disabled>종류 선택</option>
-            {selectedItem.variants.map((v) => (
-              <option key={v} value={v}>{v}</option>
-            ))}
+            {selectedItem.variants.map((v) => {
+              const colonIdx = v.lastIndexOf(":");
+              const label = colonIdx > 0 ? v.slice(0, colonIdx).trim() : v.trim();
+              const qty   = colonIdx > 0 ? parseInt(v.slice(colonIdx + 1).trim(), 10) || 1 : 1;
+              return (
+                <option key={label} value={label}>
+                  {label} · {qty}개 보유
+                </option>
+              );
+            })}
           </select>
           <input type="hidden" name="itemVariant" value={itemVariant} />
         </label>
