@@ -24,6 +24,9 @@ function isActive(pathname: string, href: string) {
 export function NavBar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
 
+  // 관리자 서브탭은 /admin 하위 경로에 있을 때만 표시
+  const showAdminSub = isAdmin && isActive(pathname, "/admin");
+
   return (
     <nav aria-label="주 메뉴" className="space-y-1.5">
       <ul className="grid grid-cols-4 gap-1 rounded-2xl bg-gray-100 p-1">
@@ -33,7 +36,7 @@ export function NavBar({ isAdmin = false }: { isAdmin?: boolean }) {
           </li>
         ))}
       </ul>
-      {isAdmin ? (
+      {showAdminSub ? (
         <ul className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-900 p-1" aria-label="관리자 메뉴">
           {adminLinks.map((link) => (
             <li key={link.href}>
