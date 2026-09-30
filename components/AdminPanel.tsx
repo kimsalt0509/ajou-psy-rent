@@ -166,18 +166,19 @@ export function AdminPanel({
   return (
     <div className="space-y-8">
       {/* 관리자 가이드 */}
-      <section className="rounded-3xl bg-gray-900 text-white overflow-hidden">
+      <section className="rounded-3xl bg-gray-900 text-white overflow-hidden ring-1 ring-white/10">
         <button
           type="button"
           onClick={() => setGuideOpen((v) => !v)}
-          className="flex w-full items-center justify-between px-5 py-4 hover:bg-white/5 transition"
+          className="flex w-full items-center justify-between gap-4 px-5 py-4 hover:bg-white/5 active:bg-white/10 transition"
         >
           <div className="text-left">
             <p className="text-xs font-semibold tracking-widest text-white/40 uppercase">관리자 가이드</p>
             <p className="mt-0.5 text-base font-bold">처음 사용하신다면 읽어보세요</p>
           </div>
-          <span className={`text-white/50 text-lg transition-transform duration-200 ${guideOpen ? "rotate-180" : ""}`}>
-            ▾
+          <span className={`shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200
+            ${guideOpen ? "bg-white/20 text-white" : "bg-white text-gray-900"}`}>
+            {guideOpen ? "접기 ▴" : "펼쳐보기 ▾"}
           </span>
         </button>
         {guideOpen ? (
