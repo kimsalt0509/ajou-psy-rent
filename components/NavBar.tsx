@@ -16,6 +16,8 @@ const adminLinks = [
   { href: "/records", label: "기록" },
 ];
 
+const adminSubPaths = ["/status", "/storage", "/records"];
+
 function isActive(pathname: string, href: string) {
   return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 }
@@ -24,15 +26,25 @@ function isActive(pathname: string, href: string) {
 export function NavBar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
 
-  // 관리자 서브탭은 /admin 하위 경로에 있을 때만 표시
-  const showAdminSub = isAdmin && isActive(pathname, "/admin");
+  // /admin 하위이거나 현황·창고·기록 탭에 있을 때 서브탭 유지 + 관리 탭 활성 표시
+  const inAdminArea =
+    isActive(pathname, "/admin") ||
+    adminSubPaths.some((p) => isActive(pathname, p));
+  const showAdminSub = isAdmin && inAdminArea;
 
   return (
     <nav aria-label="주 메뉴" className="space-y-1.5">
       <ul className="grid grid-cols-4 gap-1 rounded-2xl bg-gray-100 p-1">
         {baseLinks.map((link) => (
           <li key={link.href}>
-            <NavLink {...link} active={isActive(pathname, link.href)} />
+            <NavLink
+              {...link}
+              active={
+                link.href === "/admin"
+                  ? inAdminArea && isAdmin
+                  : isActive(pathname, link.href)
+              }
+            />
           </li>
         ))}
       </ul>

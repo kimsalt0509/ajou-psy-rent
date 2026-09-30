@@ -15,6 +15,9 @@ export function StockList({ items }: { items: ItemWithStock[] }) {
       )
     : items;
 
+  const rentable   = filtered.filter((i) => !i.consumable);
+  const consumable = filtered.filter((i) =>  i.consumable);
+
   return (
     <div className="space-y-3">
       {/* 검색 */}
@@ -29,15 +32,34 @@ export function StockList({ items }: { items: ItemWithStock[] }) {
         />
       </div>
 
-      {/* 2열 그리드 */}
       {filtered.length === 0 ? (
         <p className="py-6 text-center text-sm text-gray-400">검색 결과가 없습니다.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {filtered.map((item) => (
-            <StockCard key={item.id} item={item} />
-          ))}
-        </div>
+        <>
+          {/* 대여품 */}
+          {rentable.length > 0 && (
+            <section>
+              <p className="mb-2 text-xs font-semibold text-gray-400 tracking-wide">대여품</p>
+              <div className="grid grid-cols-2 gap-3">
+                {rentable.map((item) => (
+                  <StockCard key={item.id} item={item} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 소모품 */}
+          {consumable.length > 0 && (
+            <section>
+              <p className="mb-2 text-xs font-semibold text-gray-400 tracking-wide">소모품</p>
+              <div className="grid grid-cols-2 gap-3">
+                {consumable.map((item) => (
+                  <StockCard key={item.id} item={item} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
