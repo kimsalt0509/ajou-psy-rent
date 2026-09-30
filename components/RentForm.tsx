@@ -33,8 +33,15 @@ export function RentForm({
   const [profile, setProfile] = useState<RentalProfile | null>(null);
   const [phone, setPhone] = useState("");
   const [itemId, setItemId] = useState("");
+  const [itemVariant, setItemVariant] = useState("");
   const available = items.filter((item) => item.remaining > 0);
   const selectedItem = available.find((i) => i.id === itemId);
+
+  // 물품이 바뀌면 variant 초기화
+  function handleItemChange(id: string) {
+    setItemId(id);
+    setItemVariant("");
+  }
 
   // 지난번 입력한 이름·학번·전화번호 불러오기
   useEffect(() => {
@@ -165,7 +172,7 @@ export function RentForm({
             name="itemId"
             required
             value={itemId}
-            onChange={(e) => setItemId(e.target.value)}
+            onChange={(e) => handleItemChange(e.target.value)}
             className={inputClass}
           >
             <option value="" disabled>
@@ -194,6 +201,27 @@ export function RentForm({
           />
         </label>
       </div>
+
+      {/* 종류 선택 (variants 있는 물품만) */}
+      {selectedItem?.variants && selectedItem.variants.length > 0 ? (
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-black">
+            종류 <span className="text-red-500">*</span>
+          </span>
+          <select
+            value={itemVariant}
+            onChange={(e) => setItemVariant(e.target.value)}
+            required
+            className={inputClass}
+          >
+            <option value="" disabled>종류 선택</option>
+            {selectedItem.variants.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+          <input type="hidden" name="itemVariant" value={itemVariant} />
+        </label>
+      ) : null}
 
       {selectedItem?.dueDays && !selectedItem.consumable ? (
         <p className="rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-700 ring-1 ring-blue-100">

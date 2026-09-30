@@ -13,6 +13,7 @@ type EditState = {
   note: string;
   dueDays: string;
   consumable: boolean;
+  variants: string; // 쉼표 구분 문자열로 편집
 };
 
 export function AdminPanel({
@@ -52,6 +53,7 @@ export function AdminPanel({
       note: item.note ?? "",
       dueDays: item.dueDays ? String(item.dueDays) : "",
       consumable: !!item.consumable,
+      variants: item.variants ? item.variants.join(", ") : "",
     });
   }
 
@@ -66,6 +68,9 @@ export function AdminPanel({
       note: editState.note.trim(),
       consumable: editState.consumable,
       dueDays: editState.dueDays ? Number(editState.dueDays) : null,
+      variants: editState.variants.trim()
+        ? editState.variants.split(",").map((s) => s.trim()).filter(Boolean)
+        : null,
     };
     const res = await fetch(`/api/items/${id}`, {
       method: "PATCH",
@@ -319,6 +324,17 @@ export function AdminPanel({
                         />
                         <span className="text-sm text-gray-600">소모품 (반납 불필요)</span>
                       </label>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">
+                          종류 선택지 <span className="text-gray-400 font-normal">(쉼표로 구분, 없으면 빈칸)</span>
+                        </label>
+                        <input
+                          value={editState.variants}
+                          onChange={(e) => setEditState({ ...editState, variants: e.target.value })}
+                          placeholder="예: 큰 것, 작은 것"
+                          className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                        />
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -347,6 +363,9 @@ export function AdminPanel({
                         {item.dueDays ? <span className="ml-1.5 text-xs text-blue-500 font-normal">{item.dueDays}일</span> : null}
                         {item.consumable ? <span className="ml-1.5 text-xs text-amber-600 font-normal">소모품</span> : null}
                       </p>
+                      {item.variants && item.variants.length > 0 ? (
+                        <p className="text-[11px] text-indigo-500 mt-0.5">종류: {item.variants.join(" / ")}</p>
+                      ) : null}
                       {item.note ? (
                         <p className="text-[11px] text-gray-400 leading-tight mt-0.5 truncate">{item.note}</p>
                       ) : null}

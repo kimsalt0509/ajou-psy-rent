@@ -36,13 +36,20 @@ export async function POST(request: NextRequest) {
       studentName: v.str(form.get("studentName"), "이름", { min: 2, max: 30 }),
       phone: v.phone(form.get("phone")),
       quantity: v.int(form.get("quantity"), "수량", { min: 1, max: 50 }),
+      itemVariant: form.get("itemVariant")
+        ? v.str(form.get("itemVariant"), "종류", { max: 30 })
+        : undefined,
     };
     const photo = form.get("photo");
     if (!(photo instanceof File) || photo.size === 0)
       throw new v.InputError("대여 사진을 찍어 주세요.");
 
     const rentPhoto = await savePhoto(photo, "rent");
-    const rental = await createRental({ ...input, uid: user.uid, rentPhoto });
+    const rental = await createRental({
+      ...input,
+      uid: user.uid,
+      rentPhoto,
+    });
 
     // 메일은 응답을 보낸 뒤 발송 (대여 버튼이 메일 때문에 느려지지 않도록)
     after(() =>

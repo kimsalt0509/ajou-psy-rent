@@ -77,6 +77,7 @@ export type ItemPatch = {
   consumable?: boolean;
   dueDays?: number | null; // null = 기간 제한 해제
   total?: number;
+  variants?: string[] | null; // null = 삭제
 };
 
 /** 보유 수량 변경 시 "대여 중 수량보다 작게" 줄이지 못하도록 트랜잭션으로 확인 */
@@ -98,14 +99,16 @@ export async function updateItem(id: string, patch: ItemPatch): Promise<Item> {
     const update: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined) continue;
-      update[k] = k === "dueDays" && v === null ? FieldValue.delete() : v;
+      if (k === "dueDays" && v === null) update[k] = FieldValue.delete();
+      else if (k === "variants" && v === null) update[k] = FieldValue.delete();
+      else update[k] = v;
     }
     tx.update(ref, update);
 
     const next: Item = { ...current };
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined) continue;
-      if (k === "dueDays" && v === null) delete next.dueDays;
+      if ((k === "dueDays" || k === "variants") && v === null) delete (next as Record<string, unknown>)[k];
       else (next as Record<string, unknown>)[k] = v;
     }
     return next;
@@ -157,7 +160,7 @@ export async function getLastProfile(uid: string): Promise<RentalProfile | null>
 export type NewRental = Pick<
   Rental,
   "itemId" | "quantity" | "studentId" | "studentName" | "phone" | "uid" | "rentPhoto"
->;
+> & { itemVariant?: string };
 
 export async function createRental(data: NewRental): Promise<Rental> {
   const rentalRef = db().collection(RENTALS).doc();
@@ -178,9 +181,12 @@ export async function createRental(data: NewRental): Promise<Rental> {
     }
 
     const now = new Date();
+    const { itemVariant, ...rentalData } = data;
     const record: Omit<Rental, "id"> = {
-      ...data,
-      itemName: item.name,
+      ...rentalData,
+      itemName: itemVariant
+        ? `${item.name} (${itemVariant})`
+        : item.name,
       rentedAt: now.toISOString(),
       dueDate: item.dueDays && !item.consumable ? computeDueDate(now, item.dueDays) : null,
       returnedAt: null,

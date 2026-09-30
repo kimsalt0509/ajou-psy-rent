@@ -27,6 +27,19 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/items/
     if (body.total !== undefined)
       patch.total = v.int(body.total, "보유 수량", { min: 0, max: 10000 });
 
+    // variants: null이면 삭제, 배열이면 최대 20개 문자열 목록으로 저장
+    if ("variants" in body) {
+      if (body.variants === null || body.variants === "") {
+        patch.variants = null;
+      } else if (Array.isArray(body.variants)) {
+        patch.variants = body.variants
+          .map((s: unknown) => v.str(s, "종류", { max: 30 }))
+          .filter(Boolean)
+          .slice(0, 20);
+        if (patch.variants.length === 0) patch.variants = null;
+      }
+    }
+
     const item = await updateItem(id, patch);
     return Response.json({ item });
   } catch (error) {
