@@ -17,21 +17,40 @@ export function StockCard({ item }: { item: ItemWithStock }) {
         </div>
       </div>
 
-      {/* 수량 뱃지 */}
-      <div
-        className={`rounded-xl px-3 py-2 flex items-center justify-between ${
-          empty
-            ? "bg-pink-50 ring-1 ring-pink-200"
-            : "bg-gray-50 ring-1 ring-black/8"
-        }`}
-      >
-        <p className="text-[10px] font-medium text-gray-400">
-          {item.consumable ? "남은 수량" : "대여 가능"}
-        </p>
-        <p className={`text-2xl font-bold leading-none ${empty ? "text-pink-600" : "text-black"}`}>
-          {item.remaining}
-        </p>
-      </div>
+      {/* variants가 있으면 종류별 수량, 없으면 전체 수량 */}
+      {item.variantStock ? (
+        <div className="flex flex-col gap-1.5">
+          {Object.entries(item.variantStock).map(([v, stock]) => {
+            const vEmpty = stock.remaining === 0;
+            return (
+              <div
+                key={v}
+                className={`rounded-xl px-3 py-2 flex items-center justify-between ${
+                  vEmpty ? "bg-pink-50 ring-1 ring-pink-200" : "bg-gray-50 ring-1 ring-black/8"
+                }`}
+              >
+                <p className={`text-[11px] font-medium ${vEmpty ? "text-pink-400" : "text-gray-500"}`}>{v}</p>
+                <p className={`text-xl font-bold leading-none ${vEmpty ? "text-pink-600" : "text-black"}`}>
+                  {stock.remaining}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          className={`rounded-xl px-3 py-2 flex items-center justify-between ${
+            empty ? "bg-pink-50 ring-1 ring-pink-200" : "bg-gray-50 ring-1 ring-black/8"
+          }`}
+        >
+          <p className="text-[10px] font-medium text-gray-400">
+            {item.consumable ? "남은 수량" : "대여 가능"}
+          </p>
+          <p className={`text-2xl font-bold leading-none ${empty ? "text-pink-600" : "text-black"}`}>
+            {item.remaining}
+          </p>
+        </div>
+      )}
 
       {/* 보유/대여 중 (소모품 제외) */}
       {!item.consumable && (

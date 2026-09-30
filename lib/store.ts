@@ -334,14 +334,44 @@ export async function getItemsWithStock(): Promise<ItemWithStock[]> {
   ]);
 
   const rentedByItem = new Map<string, number>();
+  // variant별 rented: "itemId::variant" → count
+  const rentedByVariant = new Map<string, number>();
+
   for (const r of activeRentals) {
     rentedByItem.set(r.itemId, (rentedByItem.get(r.itemId) ?? 0) + r.quantity);
+
+    // itemName이 "돗자리 (큰 것)" 형태인 경우 variant 추출
+    const variantMatch = r.itemName.match(/\(([^)]+)\)$/);
+    if (variantMatch) {
+      const key = `${r.itemId}::${variantMatch[1]}`;
+      rentedByVariant.set(key, (rentedByVariant.get(key) ?? 0) + r.quantity);
+    }
   }
 
   return items
     .map((item) => {
       const rented = rentedByItem.get(item.id) ?? 0;
-      return { ...item, rented, remaining: Math.max(0, item.total - rented) };
+      const remaining = Math.max(0, item.total - rented);
+      const result: ItemWithStock = { ...item, rented, remaining };
+
+      // variants가 있으면 종류별 재고 계산
+      if (item.variants && item.variants.length > 0) {
+        const variantStock: Record<string, { rented: number; remaining: number }> = {};
+        // variant당 보유 수량 = total / variants 수 (균등 배분)
+        const perVariant = Math.floor(item.total / item.variants.length);
+        const remainder = item.total % item.variants.length;
+        item.variants.forEach((v, idx) => {
+          const varRented = rentedByVariant.get(`${item.id}::${v}`) ?? 0;
+          const varTotal = perVariant + (idx < remainder ? 1 : 0);
+          variantStock[v] = {
+            rented: varRented,
+            remaining: Math.max(0, varTotal - varRented),
+          };
+        });
+        result.variantStock = variantStock;
+      }
+
+      return result;
     })
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 }

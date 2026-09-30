@@ -39,6 +39,8 @@ export type MyRental = Pick<
 export type ItemWithStock = Item & {
   rented: number;
   remaining: number;
+  /** variants가 있을 때: 종류별 { rented, remaining } */
+  variantStock?: Record<string, { rented: number; remaining: number }>;
 };
 
 // 창고(비축 재고) — 재고와 독립된 별도 물품 목록. 대여 없이 수량만 관리
