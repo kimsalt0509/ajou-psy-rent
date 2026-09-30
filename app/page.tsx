@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { StockList } from "@/components/StockList";
 import { getItemsWithStock } from "@/lib/store";
 import type { ItemWithStock } from "@/lib/types";
@@ -30,27 +29,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           {doneMessage}
         </p>
       ) : null}
-      <section className="rounded-3xl bg-black px-5 py-5 text-white">
-        <p className="mt-1 text-2xl font-bold">과방 물품 대여 장부</p>
-        <p className="mt-2 text-sm text-white/60">
-          대여 가능한 물품 수량을 확인할 수 있습니다. 대여·반납은 로그인 후 이용해 주세요. 대여한
-          물품은 사용 후 반드시 반납해 주시기 바랍니다.
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Link
-            href="/rent"
-            className="rounded-2xl bg-white py-3 text-center text-sm font-semibold text-black hover:bg-gray-100 transition"
-          >
-            대여하기
-          </Link>
-          <Link
-            href="/return"
-            className="rounded-2xl bg-white/10 py-3 text-center text-sm font-semibold text-white hover:bg-white/20 transition"
-          >
-            반납하기
-          </Link>
-        </div>
-      </section>
 
       {loadFailed ? (
         <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200">
