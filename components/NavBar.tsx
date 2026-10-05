@@ -11,6 +11,7 @@ const baseLinks = [
 ];
 
 const adminLinks = [
+  { href: "/admin", label: "학생회 관리" },
   { href: "/status", label: "현황" },
   { href: "/storage", label: "창고" },
   { href: "/records", label: "기록" },
@@ -49,7 +50,7 @@ export function NavBar({ isAdmin = false }: { isAdmin?: boolean }) {
         ))}
       </ul>
       {showAdminSub ? (
-        <ul className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-900 p-1" aria-label="관리자 메뉴">
+        <ul className="grid grid-cols-4 gap-1 rounded-2xl bg-gray-900 p-1" aria-label="관리자 메뉴">
           {adminLinks.map((link) => (
             <li key={link.href}>
               <NavLink {...link} active={isActive(pathname, link.href)} dark />
