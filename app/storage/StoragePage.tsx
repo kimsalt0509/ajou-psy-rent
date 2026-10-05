@@ -3,10 +3,13 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { readResponse } from "@/components/FirebaseAuthProvider";
+import { itemImageSrc } from "@/lib/photo-src";
+import { ItemThumb } from "@/components/ItemThumb";
+import { compressImage } from "@/lib/image-compress";
 
-type StorageRow = { id: string; name: string; emoji: string; quantity: number; note: string };
+type StorageRow = { id: string; name: string; emoji: string; quantity: number; note: string; imageUrl?: string };
 type ItemRow = { id: string; name: string; emoji: string; total: number };
-type EditState = { name: string; emoji: string; quantity: number; note: string };
+type EditState = { name: string; emoji: string; quantity: number; note: string; imageUrl: string };
 
 async function fetchAll(): Promise<{ storage: StorageRow[]; items: ItemRow[] }> {
   const [sRes, iRes] = await Promise.all([fetch("/api/storage"), fetch("/api/items")]);
@@ -28,6 +31,8 @@ export default function StoragePage() {
 
   // 편집 상태
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [newItemImage, setNewItemImage] = useState("");
   const [editState, setEditState] = useState<EditState | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -57,6 +62,26 @@ export default function StoragePage() {
     load();
   }
 
+  /** 사진을 줄여서 올리고 저장된 주소를 돌려줌 */
+  async function uploadItemImage(file: File): Promise<string | null> {
+    setImageUploading(true);
+    setError("");
+    try {
+      const compressed = await compressImage(file);
+      const fd = new FormData();
+      fd.append("file", compressed, compressed.name);
+      const res = await fetch("/api/items/image", { method: "POST", body: fd });
+      const data = await readResponse<{ url?: string }>(res);
+      if (!res.ok || !data.url) throw new Error(data.error ?? "사진 업로드에 실패했습니다.");
+      return data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "사진 업로드에 실패했습니다.");
+      return null;
+    } finally {
+      setImageUploading(false);
+    }
+  }
+
   async function addItem(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
@@ -66,6 +91,7 @@ export default function StoragePage() {
       emoji: String(fd.get("emoji") ?? "").trim() || "📦",
       quantity: Number(fd.get("quantity") ?? 0),
       note: String(fd.get("note") ?? "").trim(),
+      ...(newItemImage ? { imageUrl: newItemImage } : {}),
     };
     if (!body.name) { setError("물품 이름을 입력해 주세요."); return; }
     const res = await fetch("/api/storage", {
@@ -79,6 +105,7 @@ export default function StoragePage() {
         [...prev, data.item!].sort((a, b) => a.name.localeCompare(b.name, "ko"))
       );
       (e.target as HTMLFormElement).reset();
+      setNewItemImage("");
     } else {
       const data = await readResponse(res);
       setError(data.error ?? "추가에 실패했습니다.");
@@ -101,7 +128,13 @@ export default function StoragePage() {
 
   function startEdit(item: StorageRow) {
     setEditingId(item.id);
-    setEditState({ name: item.name, emoji: item.emoji, quantity: item.quantity, note: item.note ?? "" });
+    setEditState({
+      name: item.name,
+      emoji: item.emoji,
+      quantity: item.quantity,
+      note: item.note ?? "",
+      imageUrl: item.imageUrl ?? "",
+    });
   }
 
   async function saveEdit(id: string) {
@@ -116,6 +149,7 @@ export default function StoragePage() {
         emoji: editState.emoji.trim(),
         quantity: editState.quantity,
         note: editState.note.trim(),
+        imageUrl: editState.imageUrl || null, // 비우면 이모지로 복귀
       }),
     });
     setSavingId(null);
@@ -251,7 +285,48 @@ export default function StoragePage() {
         <h3 className="font-bold text-black">물품 추가</h3>
         <form onSubmit={addItem} className="mt-3 grid gap-3 sm:grid-cols-2">
           <input name="name" required placeholder="이름" className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10" />
-          <input name="emoji" placeholder="이모지 (📦)" className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10" />
+          <div className="flex items-center gap-2">
+            {newItemImage ? (
+              <>
+                <ItemThumb
+                  url={newItemImage}
+                  alt="올린 사진"
+                  className="h-10 w-10 rounded-lg ring-1 ring-black/10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setNewItemImage("")}
+                  className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
+                >
+                  사진 빼기
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  name="emoji"
+                  placeholder="이모지 (📦)"
+                  className="w-24 rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10"
+                />
+                <label className="cursor-pointer rounded-lg bg-gray-100 px-2.5 py-2 text-xs text-gray-600 hover:bg-gray-200">
+                  {imageUploading ? "올리는 중..." : "사진으로 등록"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={imageUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      const url = await uploadItemImage(file);
+                      if (url) setNewItemImage(url);
+                    }}
+                  />
+                </label>
+              </>
+            )}
+          </div>
           <input name="quantity" type="number" min={0} defaultValue={0} placeholder="수량" className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10" />
           <input name="note" placeholder="비고 (보관 위치 등)" className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10" />
           <button className="rounded-xl bg-black py-2 text-sm font-semibold text-white hover:bg-gray-800 transition sm:col-span-2">
@@ -306,12 +381,50 @@ export default function StoragePage() {
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 mb-1 block">이모지</label>
-                        <input
-                          value={editState.emoji}
-                          onChange={(e) => setEditState({ ...editState, emoji: e.target.value })}
-                          className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
-                        />
+                        <label className="text-xs text-gray-500 mb-1 block">
+                          아이콘 (이모지 또는 사진)
+                        </label>
+                        {editState.imageUrl ? (
+                          <div className="flex items-center gap-2">
+                            <ItemThumb
+                              url={editState.imageUrl}
+                              alt="물품 사진"
+                              className="h-10 w-10 rounded-lg ring-1 ring-black/10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setEditState({ ...editState, imageUrl: "" })}
+                              className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
+                            >
+                              사진 빼기
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={editState.emoji}
+                              onChange={(e) => setEditState({ ...editState, emoji: e.target.value })}
+                              placeholder="📦"
+                              className="w-16 rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                            />
+                            <label className="cursor-pointer rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200">
+                              {imageUploading ? "올리는 중..." : "사진 올리기"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={imageUploading}
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  e.target.value = "";
+                                  if (!file) return;
+                                  const url = await uploadItemImage(file);
+                                  if (url) setEditState((prev) => (prev ? { ...prev, imageUrl: url } : prev));
+                                }}
+                              />
+                            </label>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="text-xs text-gray-500 mb-1 block">수량</label>
@@ -356,7 +469,17 @@ export default function StoragePage() {
                 /* ── 일반 표시 모드 ── */
                 <li key={s.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                   {/* 이모지 */}
-                  <span className="text-2xl w-8 text-center shrink-0 leading-none">{s.emoji}</span>
+                  {itemImageSrc(s.imageUrl) ? (
+                    <ItemThumb
+                      url={s.imageUrl}
+                      alt={s.name}
+                      className="h-8 w-8 shrink-0 rounded-lg ring-1 ring-black/8"
+                    />
+                  ) : (
+                    <span className="text-2xl w-8 text-center shrink-0 leading-none" aria-hidden>
+                      {s.emoji}
+                    </span>
+                  )}
 
                   {/* 이름 + 비고 */}
                   <div className="flex-1 min-w-0">

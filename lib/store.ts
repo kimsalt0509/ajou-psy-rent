@@ -330,12 +330,17 @@ export async function createStorageItem(
 
 export async function updateStorageItem(
   id: string,
-  data: Partial<Omit<StorageItem, "id" | "updatedAt">>,
+  data: Partial<Omit<StorageItem, "id" | "updatedAt" | "imageUrl">> & { imageUrl?: string | null },
 ): Promise<void> {
   const ref = db().collection(STORAGE).doc(id);
   const snap = await ref.get();
   if (!snap.exists) throw new InputError("창고 물품을 찾을 수 없습니다.");
-  await ref.update({ ...data, updatedAt: new Date().toISOString() });
+  const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  for (const [k, v] of Object.entries(data)) {
+    if (v === undefined) continue;
+    update[k] = k === "imageUrl" && v === null ? FieldValue.delete() : v;
+  }
+  await ref.update(update);
 }
 
 export async function deleteStorageItem(id: string): Promise<void> {

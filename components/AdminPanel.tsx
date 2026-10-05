@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ItemWithStock } from "@/lib/types";
 import { readResponse } from "./FirebaseAuthProvider";
 import { photoSrc, itemImageSrc } from "@/lib/photo-src";
+import { ItemThumb } from "./ItemThumb";
 import { compressImage } from "@/lib/image-compress";
 
 type EditState = {
@@ -267,6 +268,94 @@ export function AdminPanel({
         ) : null}
       </section>
 
+      <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
+        <h2 className="font-bold text-black">물품 추가</h2>
+        <form onSubmit={addItem} className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input
+            name="name"
+            required
+            placeholder="이름"
+            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
+          />
+          <div className="flex items-center gap-2">
+            {newItemImage ? (
+              <>
+                <ItemThumb
+                  url={newItemImage}
+                  alt="올린 사진"
+                  className="h-10 w-10 rounded-lg ring-1 ring-black/10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setNewItemImage("")}
+                  className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
+                >
+                  사진 빼기
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  name="emoji"
+                  placeholder="이모지 (☔)"
+                  className="w-24 rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
+                />
+                <label className="cursor-pointer rounded-lg bg-gray-100 px-2.5 py-2 text-xs text-gray-600 hover:bg-gray-200">
+                  {imageUploading ? "올리는 중..." : "사진으로 등록"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={imageUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      const url = await uploadItemImage(file);
+                      if (url) setNewItemImage(url);
+                    }}
+                  />
+                </label>
+              </>
+            )}
+          </div>
+          <input
+            name="total"
+            type="number"
+            min={0}
+            defaultValue={1}
+            required
+            placeholder="보유 수량"
+            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
+          />
+          <input
+            name="note"
+            placeholder="비고 (어디에 두는지)"
+            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
+          />
+          <input
+            name="dueDays"
+            type="number"
+            min={1}
+            placeholder="대여 기간 (일, 선택)"
+            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
+          />
+          <label className="flex items-center gap-2 px-1 sm:col-span-2">
+            <input
+              type="checkbox"
+              name="consumable"
+              className="h-4 w-4 rounded accent-amber-500"
+            />
+            <span className="text-sm text-gray-600">
+              소모품 (인공눈물 등 — 재고에서 대여 중 표시 없이 남은 수만 표시)
+            </span>
+          </label>
+          <button className="rounded-xl bg-black py-2 text-sm font-semibold text-white hover:bg-gray-800 transition sm:col-span-2">
+            추가
+          </button>
+        </form>
+      </section>
+
       {error ? (
         <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200">
           {error}
@@ -322,11 +411,10 @@ export function AdminPanel({
                           </label>
                           {editState.imageUrl ? (
                             <div className="flex items-center gap-2">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={itemImageSrc(editState.imageUrl) ?? ""}
+                              <ItemThumb
+                                url={editState.imageUrl}
                                 alt="물품 사진"
-                                className="h-10 w-10 rounded-lg object-cover ring-1 ring-black/10"
+                                className="h-10 w-10 rounded-lg ring-1 ring-black/10"
                               />
                               <button
                                 type="button"
@@ -445,11 +533,10 @@ export function AdminPanel({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-black truncate">
                         {itemImageSrc(item.imageUrl) ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={itemImageSrc(item.imageUrl) ?? ""}
-                            alt=""
-                            className="mr-1 inline-block h-5 w-5 rounded object-cover align-text-bottom ring-1 ring-black/8"
+                          <ItemThumb
+                            url={item.imageUrl}
+                            alt={item.name}
+                            className="mr-1 inline-block h-5 w-5 rounded align-text-bottom ring-1 ring-black/8"
                           />
                         ) : (
                           <span>{item.emoji} </span>
@@ -549,94 +636,6 @@ export function AdminPanel({
         </div>
       </section>
 
-      <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
-        <h2 className="font-bold text-black">물품 추가</h2>
-        <form onSubmit={addItem} className="mt-3 grid gap-3 sm:grid-cols-2">
-          <input
-            name="name"
-            required
-            placeholder="이름"
-            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
-          />
-          <div className="flex items-center gap-2">
-            {newItemImage ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={itemImageSrc(newItemImage) ?? ""}
-                  alt="올린 사진"
-                  className="h-10 w-10 rounded-lg object-cover ring-1 ring-black/10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setNewItemImage("")}
-                  className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
-                >
-                  사진 빼기
-                </button>
-              </>
-            ) : (
-              <>
-                <input
-                  name="emoji"
-                  placeholder="이모지 (☔)"
-                  className="w-24 rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
-                />
-                <label className="cursor-pointer rounded-lg bg-gray-100 px-2.5 py-2 text-xs text-gray-600 hover:bg-gray-200">
-                  {imageUploading ? "올리는 중..." : "사진으로 등록"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={imageUploading}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!file) return;
-                      const url = await uploadItemImage(file);
-                      if (url) setNewItemImage(url);
-                    }}
-                  />
-                </label>
-              </>
-            )}
-          </div>
-          <input
-            name="total"
-            type="number"
-            min={0}
-            defaultValue={1}
-            required
-            placeholder="보유 수량"
-            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
-          />
-          <input
-            name="note"
-            placeholder="비고 (어디에 두는지)"
-            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
-          />
-          <input
-            name="dueDays"
-            type="number"
-            min={1}
-            placeholder="대여 기간 (일, 선택)"
-            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
-          />
-          <label className="flex items-center gap-2 px-1 sm:col-span-2">
-            <input
-              type="checkbox"
-              name="consumable"
-              className="h-4 w-4 rounded accent-amber-500"
-            />
-            <span className="text-sm text-gray-600">
-              소모품 (인공눈물 등 — 재고에서 대여 중 표시 없이 남은 수만 표시)
-            </span>
-          </label>
-          <button className="rounded-xl bg-black py-2 text-sm font-semibold text-white hover:bg-gray-800 transition sm:col-span-2">
-            추가
-          </button>
-        </form>
-      </section>
     </div>
   );
 }

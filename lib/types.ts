@@ -50,6 +50,7 @@ export type StorageItem = {
   id: string;
   name: string;
   emoji: string;
+  imageUrl?: string; // 물품 사진 (있으면 이모지 대신 표시)
   quantity: number;
   note: string;
   updatedAt: string;

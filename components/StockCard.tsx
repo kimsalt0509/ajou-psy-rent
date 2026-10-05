@@ -1,5 +1,6 @@
 import type { ItemWithStock } from "@/lib/types";
 import { itemImageSrc } from "@/lib/photo-src";
+import { ItemThumb } from "./ItemThumb";
 
 export function StockCard({ item }: { item: ItemWithStock }) {
   const empty = item.remaining === 0;
@@ -9,12 +10,10 @@ export function StockCard({ item }: { item: ItemWithStock }) {
       {/* 상단: 사진(또는 이모지) + 이름 + 소모품 뱃지 */}
       <div className="flex items-center gap-2 min-w-0">
         {image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={image}
-            alt=""
-            loading="lazy"
-            className="h-9 w-9 shrink-0 rounded-lg object-cover ring-1 ring-black/8"
+          <ItemThumb
+            url={item.imageUrl}
+            alt={item.name}
+            className="h-9 w-9 shrink-0 rounded-lg ring-1 ring-black/8"
           />
         ) : (
           <span className="text-2xl shrink-0" aria-hidden>

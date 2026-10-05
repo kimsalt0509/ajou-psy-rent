@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
       emoji: v.str(body.emoji, "이모지", { max: 16 }) || "📦",
       quantity: v.int(body.quantity ?? 0, "수량", { min: 0, max: 100000 }),
       note: v.str(body.note, "비고", { max: 100 }),
+      ...(typeof body.imageUrl === "string" && body.imageUrl.trim()
+        ? { imageUrl: v.str(body.imageUrl, "사진 주소", { max: 500 }) }
+        : {}),
     });
     return Response.json({ item });
   } catch (error) {

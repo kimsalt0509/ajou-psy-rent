@@ -10,12 +10,24 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/storag
   const { id } = await ctx.params;
   try {
     const body = await v.readJson(request);
-    const patch: { name?: string; emoji?: string; note?: string; quantity?: number } = {};
+    const patch: {
+      name?: string;
+      emoji?: string;
+      note?: string;
+      quantity?: number;
+      imageUrl?: string | null;
+    } = {};
     if (typeof body.name === "string" && body.name.trim())
       patch.name = v.str(body.name, "물품 이름", { min: 1, max: 40 });
     if (typeof body.emoji === "string" && body.emoji.trim())
       patch.emoji = v.str(body.emoji, "이모지", { max: 16 });
     if (typeof body.note === "string") patch.note = v.str(body.note, "비고", { max: 100 });
+    if ("imageUrl" in body) {
+      patch.imageUrl =
+        typeof body.imageUrl === "string" && body.imageUrl.trim()
+          ? v.str(body.imageUrl, "사진 주소", { max: 500 })
+          : null; // 비우면 사진 삭제 → 이모지로 표시
+    }
     if (body.quantity !== undefined)
       patch.quantity = v.int(body.quantity, "수량", { min: 0, max: 100000 });
 
