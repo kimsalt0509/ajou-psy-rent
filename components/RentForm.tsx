@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ItemWithStock, RentalProfile } from "@/lib/types";
 import { compressPhotoField } from "@/lib/image-compress";
@@ -34,8 +34,16 @@ export function RentForm({
   const [phone, setPhone] = useState("");
   const [itemId, setItemId] = useState("");
   const [itemVariant, setItemVariant] = useState("");
+  const [itemQuery, setItemQuery] = useState("");
+  const [itemOpen, setItemOpen] = useState(false);
+  const itemBoxRef = useRef<HTMLDivElement>(null);
   const available = items.filter((item) => item.remaining > 0);
   const selectedItem = available.find((i) => i.id === itemId);
+  const filteredItems = available.filter(
+    (item) =>
+      item.name.includes(itemQuery) ||
+      (item.note ?? "").includes(itemQuery),
+  );
   // 종류를 고른 경우에는 그 종류의 남은 수량이 상한
   const maxQuantity =
     (itemVariant ? selectedItem?.variantStock?.[itemVariant]?.remaining : undefined) ??
@@ -47,6 +55,17 @@ export function RentForm({
     setItemId(id);
     setItemVariant("");
   }
+
+  // 물품 검색 콤보박스 바깥 클릭 시 닫기
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (itemBoxRef.current && !itemBoxRef.current.contains(e.target as Node)) {
+        setItemOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
 
   // 지난번 입력한 이름·학번·전화번호 불러오기
   useEffect(() => {
@@ -68,6 +87,7 @@ export function RentForm({
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
+    if (!itemId) { setError("빌릴 물품을 선택해 주세요."); return; }
     setError("");
     setPending(true);
     try {
@@ -169,27 +189,47 @@ export function RentForm({
       </label>
 
       <div className="grid grid-cols-[1fr_6rem] gap-3">
-        <label className="block">
+        <div className="block">
           <span className="mb-1.5 block text-sm font-medium text-black">
             물품 <span className="text-red-500">*</span>
           </span>
-          <select
-            name="itemId"
-            required
-            value={itemId}
-            onChange={(e) => handleItemChange(e.target.value)}
-            className={inputClass}
-          >
-            <option value="" disabled>
-              빌릴 물품 선택
-            </option>
-            {available.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.emoji} {item.name} · 남은 {item.remaining}개
-              </option>
-            ))}
-          </select>
-        </label>
+          {/* 숨김 input으로 실제 값 제출 */}
+          <input type="hidden" name="itemId" value={itemId} required />
+          <div ref={itemBoxRef} className="relative">
+            <input
+              type="text"
+              placeholder={selectedItem ? `${selectedItem.emoji} ${selectedItem.name}` : "물품 검색 또는 선택"}
+              value={itemOpen ? itemQuery : selectedItem ? `${selectedItem.emoji} ${selectedItem.name}` : ""}
+              onChange={(e) => { setItemQuery(e.target.value); setItemOpen(true); }}
+              onFocus={() => { setItemQuery(""); setItemOpen(true); }}
+              className={inputClass + " cursor-pointer"}
+              autoComplete="off"
+            />
+            {itemOpen && (
+              <ul className="absolute z-20 mt-1 w-full rounded-2xl border border-black/10 bg-white py-1 shadow-lg max-h-56 overflow-y-auto">
+                {filteredItems.length === 0 ? (
+                  <li className="px-4 py-3 text-sm text-gray-400">검색 결과 없음</li>
+                ) : (
+                  filteredItems.map((item) => (
+                    <li
+                      key={item.id}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        handleItemChange(item.id);
+                        setItemQuery("");
+                        setItemOpen(false);
+                      }}
+                      className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer hover:bg-gray-50 ${item.id === itemId ? "bg-gray-100 font-medium" : ""}`}
+                    >
+                      <span>{item.emoji} {item.name}</span>
+                      <span className="text-gray-400 text-xs">남은 {item.remaining}개</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
+        </div>
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-black">
