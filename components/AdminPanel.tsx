@@ -4,7 +4,8 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ItemWithStock } from "@/lib/types";
 import { readResponse } from "./FirebaseAuthProvider";
-import { photoSrc } from "@/lib/photo-src";
+import { photoSrc, itemImageSrc } from "@/lib/photo-src";
+import { compressImage } from "@/lib/image-compress";
 
 type EditState = {
   name: string;
@@ -14,6 +15,7 @@ type EditState = {
   dueDays: string;
   consumable: boolean;
   variants: string; // 쉼표 구분 문자열로 편집
+  imageUrl: string; // 빈 문자열이면 이모지 사용
 };
 
 export function AdminPanel({
@@ -44,6 +46,30 @@ export function AdminPanel({
   // 물품 목록 검색
   const [itemQuery, setItemQuery] = useState("");
 
+  // 물품 사진 업로드
+  const [imageUploading, setImageUploading] = useState(false);
+  const [newItemImage, setNewItemImage] = useState<string>(""); // 물품 추가 폼용
+
+  /** 사진을 줄여서 올리고 저장된 주소를 돌려줌 */
+  async function uploadItemImage(file: File): Promise<string | null> {
+    setImageUploading(true);
+    setError("");
+    try {
+      const compressed = await compressImage(file);
+      const fd = new FormData();
+      fd.append("file", compressed, compressed.name);
+      const res = await fetch("/api/items/image", { method: "POST", body: fd });
+      const data = await readResponse<{ url?: string }>(res);
+      if (!res.ok || !data.url) throw new Error(data.error ?? "사진 업로드에 실패했습니다.");
+      return data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "사진 업로드에 실패했습니다.");
+      return null;
+    } finally {
+      setImageUploading(false);
+    }
+  }
+
   function startEdit(item: ItemWithStock) {
     setEditingId(item.id);
     setEditState({
@@ -54,6 +80,7 @@ export function AdminPanel({
       dueDays: item.dueDays ? String(item.dueDays) : "",
       consumable: !!item.consumable,
       variants: item.variants ? item.variants.join(", ") : "",
+      imageUrl: item.imageUrl ?? "",
     });
   }
 
@@ -81,6 +108,7 @@ export function AdminPanel({
       consumable: editState.consumable,
       dueDays: editState.dueDays ? Number(editState.dueDays) : null,
       variants: parsedVariants,
+      imageUrl: editState.imageUrl || null, // 비우면 이모지로 복귀
     };
     const res = await fetch(`/api/items/${id}`, {
       method: "PATCH",
@@ -110,6 +138,7 @@ export function AdminPanel({
       note: String(fd.get("note") ?? ""),
       consumable: fd.get("consumable") === "on",
       ...(fd.get("dueDays") ? { dueDays: Number(fd.get("dueDays")) } : {}),
+      ...(newItemImage ? { imageUrl: newItemImage } : {}),
     };
     const res = await fetch("/api/items", {
       method: "POST",
@@ -122,6 +151,7 @@ export function AdminPanel({
       return;
     }
     form.reset();
+    setNewItemImage("");
     router.refresh();
   }
 
@@ -287,12 +317,51 @@ export function AdminPanel({
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 mb-1 block">이모지</label>
-                          <input
-                            value={editState.emoji}
-                            onChange={(e) => setEditState({ ...editState, emoji: e.target.value })}
-                            className="w-full rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
-                          />
+                          <label className="text-xs text-gray-500 mb-1 block">
+                            아이콘 (이모지 또는 사진)
+                          </label>
+                          {editState.imageUrl ? (
+                            <div className="flex items-center gap-2">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={itemImageSrc(editState.imageUrl) ?? ""}
+                                alt="물품 사진"
+                                className="h-10 w-10 rounded-lg object-cover ring-1 ring-black/10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setEditState({ ...editState, imageUrl: "" })}
+                                className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
+                              >
+                                사진 빼기
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <input
+                                value={editState.emoji}
+                                onChange={(e) => setEditState({ ...editState, emoji: e.target.value })}
+                                placeholder="☔"
+                                className="w-16 rounded-xl bg-white px-3 py-2 text-sm text-black ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-black/20"
+                              />
+                              <label className="cursor-pointer rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200">
+                                {imageUploading ? "올리는 중..." : "사진 올리기"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={imageUploading}
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    e.target.value = "";
+                                    if (!file) return;
+                                    const url = await uploadItemImage(file);
+                                    if (url) setEditState((prev) => (prev ? { ...prev, imageUrl: url } : prev));
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          )}
                         </div>
                       <div>
                         <label className="text-xs text-gray-500 mb-1 block">보유 수량</label>
@@ -375,7 +444,17 @@ export function AdminPanel({
                   <li key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-black truncate">
-                        {item.emoji} {item.name}
+                        {itemImageSrc(item.imageUrl) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={itemImageSrc(item.imageUrl) ?? ""}
+                            alt=""
+                            className="mr-1 inline-block h-5 w-5 rounded object-cover align-text-bottom ring-1 ring-black/8"
+                          />
+                        ) : (
+                          <span>{item.emoji} </span>
+                        )}
+                        {item.name}
                         {item.dueDays ? <span className="ml-1.5 text-xs text-blue-500 font-normal">{item.dueDays}일</span> : null}
                         {item.consumable ? <span className="ml-1.5 text-xs text-amber-600 font-normal">소모품</span> : null}
                       </p>
@@ -479,11 +558,49 @@ export function AdminPanel({
             placeholder="이름"
             className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
           />
-          <input
-            name="emoji"
-            placeholder="이모지 (☔)"
-            className="rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
-          />
+          <div className="flex items-center gap-2">
+            {newItemImage ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={itemImageSrc(newItemImage) ?? ""}
+                  alt="올린 사진"
+                  className="h-10 w-10 rounded-lg object-cover ring-1 ring-black/10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setNewItemImage("")}
+                  className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
+                >
+                  사진 빼기
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  name="emoji"
+                  placeholder="이모지 (☔)"
+                  className="w-24 rounded-xl bg-gray-100 px-3 py-2 text-black placeholder-gray-400"
+                />
+                <label className="cursor-pointer rounded-lg bg-gray-100 px-2.5 py-2 text-xs text-gray-600 hover:bg-gray-200">
+                  {imageUploading ? "올리는 중..." : "사진으로 등록"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={imageUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      const url = await uploadItemImage(file);
+                      if (url) setNewItemImage(url);
+                    }}
+                  />
+                </label>
+              </>
+            )}
+          </div>
           <input
             name="total"
             type="number"

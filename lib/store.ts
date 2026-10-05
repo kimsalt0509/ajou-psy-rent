@@ -98,6 +98,7 @@ export type ItemPatch = {
   dueDays?: number | null; // null = 기간 제한 해제
   total?: number;
   variants?: string[] | null; // null = 삭제
+  imageUrl?: string | null; // null = 사진 삭제(이모지로 복귀)
 };
 
 /** 보유 수량 변경 시 "대여 중 수량보다 작게" 줄이지 못하도록 트랜잭션으로 확인 */
@@ -119,8 +120,8 @@ export async function updateItem(id: string, patch: ItemPatch): Promise<Item> {
     const update: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined) continue;
-      if (k === "dueDays" && v === null) update[k] = FieldValue.delete();
-      else if (k === "variants" && v === null) update[k] = FieldValue.delete();
+      if (v === null && (k === "dueDays" || k === "variants" || k === "imageUrl"))
+        update[k] = FieldValue.delete();
       else update[k] = v;
     }
     tx.update(ref, update);
@@ -128,7 +129,8 @@ export async function updateItem(id: string, patch: ItemPatch): Promise<Item> {
     const next: Item = { ...current };
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined) continue;
-      if ((k === "dueDays" || k === "variants") && v === null) delete (next as Record<string, unknown>)[k];
+      if (v === null && (k === "dueDays" || k === "variants" || k === "imageUrl"))
+        delete (next as Record<string, unknown>)[k];
       else (next as Record<string, unknown>)[k] = v;
     }
     return next;

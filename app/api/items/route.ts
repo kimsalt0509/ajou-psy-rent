@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
       note: v.str(body.note, "비고", { max: 100 }),
       consumable: body.consumable === true,
       dueDays,
+      ...(typeof body.imageUrl === "string" && body.imageUrl.trim()
+        ? { imageUrl: v.str(body.imageUrl, "사진 주소", { max: 500 }) }
+        : {}),
     });
     return Response.json({ item });
   } catch (error) {

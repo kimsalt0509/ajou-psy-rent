@@ -24,6 +24,12 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/items/
           ? null
           : v.int(body.dueDays, "대여 기간", { min: 1, max: 365 });
     }
+    if ("imageUrl" in body) {
+      patch.imageUrl =
+        typeof body.imageUrl === "string" && body.imageUrl.trim()
+          ? v.str(body.imageUrl, "사진 주소", { max: 500 })
+          : null; // 비우면 사진 삭제 → 이모지로 표시
+    }
     if (body.total !== undefined)
       patch.total = v.int(body.total, "보유 수량", { min: 0, max: 10000 });
 

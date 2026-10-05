@@ -1,12 +1,26 @@
 import type { ItemWithStock } from "@/lib/types";
+import { itemImageSrc } from "@/lib/photo-src";
 
 export function StockCard({ item }: { item: ItemWithStock }) {
   const empty = item.remaining === 0;
+  const image = itemImageSrc(item.imageUrl);
   return (
     <article className="rounded-2xl bg-white p-3.5 shadow-sm ring-1 ring-black/8 flex flex-col gap-2">
-      {/* 상단: 이모지 + 이름 + 소모품 뱃지 */}
+      {/* 상단: 사진(또는 이모지) + 이름 + 소모품 뱃지 */}
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-2xl shrink-0">{item.emoji}</span>
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            className="h-9 w-9 shrink-0 rounded-lg object-cover ring-1 ring-black/8"
+          />
+        ) : (
+          <span className="text-2xl shrink-0" aria-hidden>
+            {item.emoji}
+          </span>
+        )}
         <div className="min-w-0">
           <h2 className="text-sm font-bold text-black leading-tight truncate">{item.name}</h2>
           {item.consumable && (

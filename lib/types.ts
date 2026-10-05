@@ -2,6 +2,7 @@ export type Item = {
   id: string;
   name: string;
   emoji: string;
+  imageUrl?: string; // 물품 사진 (있으면 이모지 대신 표시)
   total: number;
   note: string;
   consumable?: boolean;
