@@ -20,7 +20,7 @@ export type Rental = {
   uid: string; // 대여자 Firebase UID
   rentedAt: string;
   dueDate: string | null; // 반납 기한 (ISO, KST 기준 해당일 23:59:59). 기간 미설정 물품은 null
-  rentPhoto: string; // Firebase Storage URL (관리자 프록시로만 열람)
+  rentPhoto: string | null; // Firebase Storage URL (관리자 프록시로만 열람). 소모품은 사진 없이 가능
   returnedAt: string | null;
   returnPhoto: string | null;
   returnedBy?: "self" | "admin";

@@ -236,10 +236,16 @@ export function RentForm({
         </p>
       ) : null}
 
+      {/* 소모품(반납 없는 물품)은 사진 없이도 신청할 수 있습니다 */}
       <PhotoField
         name="photo"
-        label="대여 사진"
-        hint="빌리는 물품이 잘 보이게 찍어 주세요."
+        label={selectedItem?.consumable ? "사진 (선택)" : "대여 사진"}
+        hint={
+          selectedItem?.consumable
+            ? "소모품은 사진을 올리지 않아도 됩니다."
+            : "빌리는 물품이 잘 보이게 찍어 주세요."
+        }
+        required={!selectedItem?.consumable}
       />
 
       <label className="flex items-start gap-2 rounded-2xl bg-white p-3 ring-1 ring-black/8">

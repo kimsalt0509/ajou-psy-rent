@@ -61,6 +61,11 @@ export async function getItems(): Promise<Item[]> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Item, "id">) }));
 }
 
+export async function getItemById(id: string): Promise<Item | null> {
+  const snap = await db().collection(ITEMS).doc(id).get();
+  return snap.exists ? { id: snap.id, ...(snap.data() as Omit<Item, "id">) } : null;
+}
+
 export async function createItem(data: Omit<Item, "id">): Promise<Item> {
   await maybeSeed();
   const clean = Object.fromEntries(

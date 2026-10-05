@@ -1,7 +1,7 @@
 import { NextRequest, after } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { savePhoto } from "@/lib/photos";
-import { createRental, getItemsWithStock, getRentals } from "@/lib/store";
+import { createRental, getItemsWithStock, getRentals, getItemById } from "@/lib/store";
 import { unauthorized, verifyUser } from "@/lib/auth-helper";
 import { sendRentNotification } from "@/lib/email";
 import * as v from "@/lib/validate";
@@ -40,11 +40,16 @@ export async function POST(request: NextRequest) {
         ? v.str(form.get("itemVariant"), "종류", { max: 30 })
         : undefined,
     };
+    // 소모품(반납 없는 물품)은 사진 없이도 신청 가능 / 반납하는 물품은 사진 필수
+    const item = await getItemById(input.itemId);
+    if (!item) throw new v.InputError("물품을 찾을 수 없습니다.");
+
     const photo = form.get("photo");
-    if (!(photo instanceof File) || photo.size === 0)
+    const hasPhoto = photo instanceof File && photo.size > 0;
+    if (!hasPhoto && !item.consumable)
       throw new v.InputError("대여 사진을 찍어 주세요.");
 
-    const rentPhoto = await savePhoto(photo, "rent");
+    const rentPhoto = hasPhoto ? await savePhoto(photo, "rent") : null;
     const rental = await createRental({
       ...input,
       uid: user.uid,
