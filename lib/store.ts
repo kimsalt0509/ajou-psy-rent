@@ -61,6 +61,21 @@ export async function getItems(): Promise<Item[]> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Item, "id">) }));
 }
 
+
+/** 대여 기록의 종류(variant) — 새 기록은 itemVariant 필드, 예전 기록은 "이름 (종류)"에서 파싱 */
+export function rentalVariant(r: { itemName?: string; itemVariant?: string }): string | null {
+  if (r.itemVariant) return r.itemVariant;
+  return r.itemName?.match(/\(([^)]+)\)$/)?.[1] ?? null;
+}
+
+/** "큰 것:1" → { label: "큰 것", total: 1 } */
+export function parseVariant(v: string): { label: string; total: number } {
+  const i = v.lastIndexOf(":");
+  return i > 0
+    ? { label: v.slice(0, i).trim(), total: parseInt(v.slice(i + 1).trim(), 10) || 1 }
+    : { label: v.trim(), total: 1 };
+}
+
 export async function getItemById(id: string): Promise<Item | null> {
   const snap = await db().collection(ITEMS).doc(id).get();
   return snap.exists ? { id: snap.id, ...(snap.data() as Omit<Item, "id">) } : null;
@@ -176,7 +191,8 @@ export async function createRental(data: NewRental): Promise<Rental> {
     if (!itemDoc.exists) throw new InputError("물품을 찾을 수 없습니다.");
     const item = { id: itemDoc.id, ...(itemDoc.data() as Omit<Item, "id">) };
 
-    const remaining = item.total - sumQuantity(await tx.get(activeRentalsQuery(item.id)));
+    const activeSnap = await tx.get(activeRentalsQuery(item.id));
+    const remaining = item.total - sumQuantity(activeSnap);
     if (data.quantity > remaining) {
       throw new InputError(
         remaining > 0
@@ -185,13 +201,32 @@ export async function createRental(data: NewRental): Promise<Rental> {
       );
     }
 
+    // 종류가 있는 물품은 "종류별" 재고까지 확인 (큰 것 1개뿐인데 2명이 빌리는 것 방지)
+    if (item.variants?.length) {
+      const chosen = data.itemVariant?.trim();
+      const variant = item.variants.map(parseVariant).find((v) => v.label === chosen);
+      if (!variant) throw new InputError("종류를 선택해 주세요.");
+
+      const variantRented = activeSnap.docs.reduce((sum, d) => {
+        const r = d.data() as { itemName?: string; itemVariant?: string; quantity?: number };
+        return rentalVariant(r) === variant.label ? sum + (r.quantity ?? 1) : sum;
+      }, 0);
+      const variantRemaining = variant.total - variantRented;
+      if (data.quantity > variantRemaining) {
+        throw new InputError(
+          variantRemaining > 0
+            ? `${item.name} ${variant.label}은(는) 지금 ${variantRemaining}개만 대여할 수 있습니다.`
+            : `${item.name} ${variant.label}은(는) 모두 대여 중입니다.`,
+        );
+      }
+    }
+
     const now = new Date();
     const { itemVariant, ...rentalData } = data;
     const record: Omit<Rental, "id"> = {
       ...rentalData,
-      itemName: itemVariant
-        ? `${item.name} (${itemVariant})`
-        : item.name,
+      itemName: itemVariant ? `${item.name} (${itemVariant})` : item.name,
+      ...(itemVariant ? { itemVariant } : {}),
       rentedAt: now.toISOString(),
       dueDate: item.dueDays && !item.consumable ? computeDueDate(now, item.dueDays) : null,
       returnedAt: null,
@@ -345,10 +380,9 @@ export async function getItemsWithStock(): Promise<ItemWithStock[]> {
   for (const r of activeRentals) {
     rentedByItem.set(r.itemId, (rentedByItem.get(r.itemId) ?? 0) + r.quantity);
 
-    // itemName이 "돗자리 (큰 것)" 형태인 경우 variant 추출
-    const variantMatch = r.itemName.match(/\(([^)]+)\)$/);
-    if (variantMatch) {
-      const key = `${r.itemId}::${variantMatch[1]}`;
+    const variant = rentalVariant(r);
+    if (variant) {
+      const key = `${r.itemId}::${variant}`;
       rentedByVariant.set(key, (rentedByVariant.get(key) ?? 0) + r.quantity);
     }
   }
@@ -364,9 +398,7 @@ export async function getItemsWithStock(): Promise<ItemWithStock[]> {
         const variantStock: Record<string, { rented: number; remaining: number }> = {};
         // "이름:수량" 파싱. 콜론 없으면 수량 1로 취급
         item.variants.forEach((v) => {
-          const colonIdx = v.lastIndexOf(":");
-          const label = colonIdx > 0 ? v.slice(0, colonIdx).trim() : v.trim();
-          const varTotal = colonIdx > 0 ? parseInt(v.slice(colonIdx + 1).trim(), 10) || 1 : 1;
+          const { label, total: varTotal } = parseVariant(v);
           const varRented = rentedByVariant.get(`${item.id}::${label}`) ?? 0;
           variantStock[label] = {
             rented: varRented,

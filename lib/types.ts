@@ -13,6 +13,7 @@ export type Rental = {
   id: string;
   itemId: string;
   itemName: string;
+  itemVariant?: string; // 종류 선택 물품(예: 돗자리 큰 것/작은 것)의 선택값
   quantity: number;
   studentId: string;
   studentName: string;

@@ -36,6 +36,11 @@ export function RentForm({
   const [itemVariant, setItemVariant] = useState("");
   const available = items.filter((item) => item.remaining > 0);
   const selectedItem = available.find((i) => i.id === itemId);
+  // 종류를 고른 경우에는 그 종류의 남은 수량이 상한
+  const maxQuantity =
+    (itemVariant ? selectedItem?.variantStock?.[itemVariant]?.remaining : undefined) ??
+    selectedItem?.remaining ??
+    undefined;
 
   // 물품이 바뀌면 variant 초기화
   function handleItemChange(id: string) {
@@ -194,7 +199,7 @@ export function RentForm({
             name="quantity"
             type="number"
             min={1}
-            max={selectedItem?.remaining ?? undefined}
+            max={maxQuantity}
             defaultValue={1}
             required
             className={inputClass}
@@ -218,10 +223,10 @@ export function RentForm({
             {selectedItem.variants.map((v) => {
               const colonIdx = v.lastIndexOf(":");
               const label = colonIdx > 0 ? v.slice(0, colonIdx).trim() : v.trim();
-              const qty   = colonIdx > 0 ? parseInt(v.slice(colonIdx + 1).trim(), 10) || 1 : 1;
+              const left = selectedItem.variantStock?.[label]?.remaining ?? 0;
               return (
-                <option key={label} value={label}>
-                  {label} · {qty}개 보유
+                <option key={label} value={label} disabled={left <= 0}>
+                  {label} · {left > 0 ? `남은 ${left}개` : "대여 중"}
                 </option>
               );
             })}
@@ -256,7 +261,9 @@ export function RentForm({
           수집 항목: 이름, 학번, 전화번호, 이메일, 대여·반납 사진 · 목적: 물품 대여 관리 및
           미반납 시 연락 · 보유 기간:{" "}
           {retentionDays > 0
-            ? `반납 완료 후 ${retentionDays}일 (이후 자동 파기)`
+            ? `반납 완료 후 ${retentionDays}일${
+                retentionDays % 30 === 0 ? ` (약 ${retentionDays / 30}개월)` : ""
+              } 뒤 자동 파기`
             : "반납 완료 후 대여 관리 목적 달성 시까지"}
         </span>
       </label>
