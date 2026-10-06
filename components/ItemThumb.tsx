@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { itemImageSrc } from "@/lib/photo-src";
 import { LightBox } from "./LightBox";
@@ -9,6 +9,7 @@ import { LightBox } from "./LightBox";
  * 물품 사진 썸네일 — 누르면 크게 보입니다.
  * 사진이 없으면 아무것도 그리지 않으므로, 이모지 대체 표시는 쓰는 쪽에서 처리합니다.
  * LightBox는 포털로 body에 띄워서 <p>·<li> 안에서도 레이아웃이 깨지지 않습니다.
+ * 마운트 시 원본 이미지를 미리 받아 두어 클릭 즉시 열립니다.
  */
 export function ItemThumb({
   url,
@@ -21,6 +22,14 @@ export function ItemThumb({
 }) {
   const [open, setOpen] = useState(false);
   const src = itemImageSrc(url);
+
+  // 썸네일이 화면에 보이는 순간 원본도 백그라운드에서 미리 로드 → 클릭 즉시 캐시에서 표시
+  useEffect(() => {
+    if (!src) return;
+    const img = new Image();
+    img.src = src;
+  }, [src]);
+
   if (!src) return null;
 
   return (
