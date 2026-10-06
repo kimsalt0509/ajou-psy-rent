@@ -83,6 +83,7 @@ function NavLink({
   return (
     <Link
       href={href}
+      prefetch={true}
       aria-current={active ? "page" : undefined}
       className={`block rounded-xl px-1 text-center font-medium transition ${
         dark ? "py-1.5 text-xs" : "py-2 text-sm"
