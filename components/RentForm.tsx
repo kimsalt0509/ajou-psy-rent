@@ -36,6 +36,7 @@ export function RentForm({
   const [itemVariant, setItemVariant] = useState("");
   const [itemQuery, setItemQuery] = useState("");
   const [itemOpen, setItemOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const itemBoxRef = useRef<HTMLDivElement>(null);
   const available = items.filter((item) => item.remaining > 0);
   const selectedItem = available.find((i) => i.id === itemId);
@@ -49,11 +50,13 @@ export function RentForm({
     (itemVariant ? selectedItem?.variantStock?.[itemVariant]?.remaining : undefined) ??
     selectedItem?.remaining ??
     undefined;
+  const quantityExceeded = maxQuantity !== undefined && quantity > maxQuantity;
 
-  // 물품이 바뀌면 variant 초기화
+  // 물품이 바뀌면 variant·수량 초기화
   function handleItemChange(id: string) {
     setItemId(id);
     setItemVariant("");
+    setQuantity(1);
   }
 
   // 물품 검색 콤보박스 바깥 클릭 시 닫기
@@ -88,6 +91,7 @@ export function RentForm({
     event.preventDefault();
     if (pending) return;
     if (!itemId) { setError("빌릴 물품을 선택해 주세요."); return; }
+    if (quantityExceeded) { setError(`현재 ${maxQuantity}개만 남아 있어서 ${quantity}개는 빌릴 수 없어요.`); return; }
     setError("");
     setPending(true);
     try {
@@ -240,12 +244,20 @@ export function RentForm({
             type="number"
             min={1}
             max={maxQuantity}
-            defaultValue={1}
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
             required
-            className={inputClass}
+            className={inputClass + (quantityExceeded ? " ring-red-400 ring-2" : "")}
           />
         </label>
       </div>
+
+      {/* 수량 초과 경고 */}
+      {quantityExceeded ? (
+        <p role="alert" className="rounded-xl bg-orange-50 px-3 py-2 text-sm text-orange-800 ring-1 ring-orange-200">
+          현재 <strong>{maxQuantity}개</strong>만 남아 있어서 {quantity}개는 빌릴 수 없어요.
+        </p>
+      ) : null}
 
       {/* 종류 선택 (variants 있는 물품만) */}
       {selectedItem?.variants && selectedItem.variants.length > 0 ? (
