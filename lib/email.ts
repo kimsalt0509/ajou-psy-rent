@@ -249,7 +249,7 @@ export async function sendReturnNotification(
       "같은 물품을 기다리는 다른 학우들도 있을 수 있으니,<br>다음에는 반납 기한을 맞춰서 반납 부탁드립니다.<br>이용해 주셔서 감사합니다.";
     tasks.push(
       sendMail(
-        [data.studentEmail],
+        [student],
         `[반납 완료] ${data.itemName} ${data.quantity}개`,
         renderMail({
           tone: "success",

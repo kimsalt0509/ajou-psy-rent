@@ -73,7 +73,9 @@ export default function LoginPage() {
             {pending ? "로그인 중..." : "Google로 로그인"}
           </button>
           <p className="text-center text-xs text-gray-400">
-            {DOMAIN ? `@${DOMAIN} 학교 계정으로 로그인해 주세요.` : "모든 Google 계정으로 로그인 가능합니다."}
+            {DOMAIN
+              ? `@${DOMAIN} 학교 계정으로 로그인해 주세요.`
+              : "@ajou.ac.kr 이메일로 로그인하는 것을 권장합니다."}
           </p>
         </div>
       </div>
