@@ -149,11 +149,14 @@ export async function sendRentNotification(
 
   const tasks: Promise<void>[] = [];
   const admins = await adminEmails();
+  const student = data.studentEmail?.trim().toLowerCase() || null;
+  // 본인이 관리자여도 학생용 확인 메일은 받고, 관리자 알림은 다른 관리자에게만 보냄
+  const adminRecipients = student ? admins.filter((e) => e !== student) : admins;
 
-  if (admins.length) {
+  if (adminRecipients.length) {
     tasks.push(
       sendMail(
-        admins,
+        adminRecipients,
         `[대여] ${data.studentName} - ${data.itemName} ${data.quantity}개`,
         renderMail({
           tone: "neutral",
@@ -173,10 +176,10 @@ export async function sendRentNotification(
     );
   }
 
-  if (data.studentEmail && !admins.includes(data.studentEmail.toLowerCase())) {
+  if (student) {
     tasks.push(
       sendMail(
-        [data.studentEmail],
+        [student],
         `[대여 완료] ${data.itemName} ${data.quantity}개 (반납 기한: ${due})`,
         renderMail({
           tone: "neutral",
@@ -210,11 +213,13 @@ export async function sendReturnNotification(
 
   const tasks: Promise<void>[] = [];
   const admins = await adminEmails();
+  const student = data.studentEmail?.trim().toLowerCase() || null;
+  const adminRecipients = student ? admins.filter((e) => e !== student) : admins;
 
-  if (admins.length) {
+  if (adminRecipients.length) {
     tasks.push(
       sendMail(
-        admins,
+        adminRecipients,
         `[반납] ${data.studentName} - ${data.itemName} ${data.quantity}개`,
         renderMail({
           tone: "success",
@@ -239,7 +244,7 @@ export async function sendReturnNotification(
     );
   }
 
-  if (data.studentEmail && !admins.includes(data.studentEmail.toLowerCase())) {
+  if (student) {
     const lateMsg =
       "같은 물품을 기다리는 다른 학우들도 있을 수 있으니,<br>다음에는 반납 기한을 맞춰서 반납 부탁드립니다.<br>이용해 주셔서 감사합니다.";
     tasks.push(
