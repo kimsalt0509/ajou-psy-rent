@@ -41,6 +41,14 @@ export function phone(value: unknown): string {
     : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
+/** 메일 주소 검증 → 소문자로 정규화 */
+export function email(value: unknown, label = "메일 주소"): string {
+  const s = str(value, label, { min: 1, max: 100 }).toLowerCase();
+  if (!/^[^\s@,]+@[^\s@,]+\.[^\s@,]{2,}$/.test(s))
+    throw new InputError(`${label}를 정확히 입력해 주세요. (예: name@ajou.ac.kr)`);
+  return s;
+}
+
 export function errorResponse(error: unknown, fallback: string, status = 400) {
   if (error instanceof InputError)
     return Response.json({ error: error.message }, { status });

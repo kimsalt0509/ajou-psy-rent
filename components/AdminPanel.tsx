@@ -23,10 +23,12 @@ export function AdminPanel({
   items,
   notice: initialNotice = "",
   faviconUrl: initialFaviconUrl = null,
+  adminEmails: initialAdminEmails = [],
 }: {
   items: ItemWithStock[];
   notice?: string;
   faviconUrl?: string | null;
+  adminEmails?: string[];
 }) {
   const router = useRouter();
   const [error, setError] = useState("");
@@ -34,6 +36,10 @@ export function AdminPanel({
   const [notice, setNotice] = useState(initialNotice);
   const [noticeSaving, setNoticeSaving] = useState(false);
   const [noticeSaved, setNoticeSaved] = useState(false);
+  const [adminEmails, setAdminEmails] = useState<string[]>(initialAdminEmails);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailsSaving, setEmailsSaving] = useState(false);
+  const [emailsSaved, setEmailsSaved] = useState(false);
   const [faviconUrl, setFaviconUrl] = useState<string | null>(initialFaviconUrl);
   const [faviconUploading, setFaviconUploading] = useState(false);
   const [faviconSaved, setFaviconSaved] = useState(false);
@@ -168,6 +174,45 @@ export function AdminPanel({
     } else {
       router.refresh();
     }
+  }
+
+  /** 목록 전체를 저장 — 성공하면 true */
+  async function saveAdminEmails(next: string[]): Promise<boolean> {
+    setEmailsSaving(true);
+    setEmailsSaved(false);
+    setError("");
+    const res = await fetch("/api/admin-emails", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emails: next }),
+    });
+    const data = await readResponse<{ emails?: string[] }>(res);
+    setEmailsSaving(false);
+    if (!res.ok) {
+      setError(data.error ?? "관리자 메일 저장에 실패했습니다.");
+      return false;
+    }
+    setAdminEmails(data.emails ?? next);
+    setEmailsSaved(true);
+    setTimeout(() => setEmailsSaved(false), 2000);
+    return true;
+  }
+
+  async function addAdminEmail(e: FormEvent) {
+    e.preventDefault();
+    const value = newEmail.trim().toLowerCase();
+    if (!value || emailsSaving) return;
+    if (adminEmails.includes(value)) {
+      setError("이미 등록된 메일입니다.");
+      return;
+    }
+    if (await saveAdminEmails([...adminEmails, value])) setNewEmail("");
+  }
+
+  async function removeAdminEmail(mail: string) {
+    if (emailsSaving) return;
+    if (!confirm(`${mail} 로는 이제 알림을 보내지 않습니다. 목록에서 뺄까요?`)) return;
+    await saveAdminEmails(adminEmails.filter((m) => m !== mail));
   }
 
   async function saveNotice() {
@@ -581,6 +626,58 @@ export function AdminPanel({
             </ul>
           );
         })()}
+      </section>
+
+      <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">
+        <h2 className="font-bold text-black">알림 받을 메일</h2>
+        <p className="mt-1 text-sm text-gray-400">
+          대여 · 반납 · 연체 알림이 여기 등록된 주소로 갑니다. 추가하거나 빼면 바로 반영됩니다.
+        </p>
+
+        {adminEmails.length === 0 ? (
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200">
+            등록된 메일이 없어 <strong>아무에게도 알림이 가지 않습니다.</strong> 최소 한 명은 등록해 주세요.
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-black/5">
+            {adminEmails.map((mail) => (
+              <li key={mail} className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0 truncate text-sm text-black">{mail}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAdminEmail(mail)}
+                  disabled={emailsSaving}
+                  aria-label={`${mail} 빼기`}
+                  className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                >
+                  빼기
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form onSubmit={addAdminEmail} className="mt-3 flex gap-2">
+          <input
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="name@ajou.ac.kr"
+            autoComplete="off"
+            className="min-w-0 flex-1 rounded-xl bg-gray-100 px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10"
+          />
+          <button
+            type="submit"
+            disabled={emailsSaving || !newEmail.trim()}
+            className="shrink-0 rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
+          >
+            {emailsSaving ? "저장 중..." : emailsSaved ? "저장됨 ✓" : "추가"}
+          </button>
+        </form>
+
+        <p className="mt-2 text-xs text-gray-400">
+          여기 있는 주소는 알림만 받습니다. 관리 탭에 들어오려면 관리자 비밀번호가 따로 필요합니다.
+        </p>
       </section>
 
       <section className="rounded-3xl bg-white p-5 ring-1 ring-black/8">

@@ -1,7 +1,7 @@
 import { AdminLogin } from "@/components/AdminLogin";
 import { AdminPanel } from "@/components/AdminPanel";
 import { isAdmin } from "@/lib/admin";
-import { getItemsWithStock, getNotice, getFaviconUrl } from "@/lib/store";
+import { getItemsWithStock, getNotice, getFaviconUrl, getAdminEmails } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -15,16 +15,22 @@ export default async function AdminPage() {
     );
   }
 
-  const [items, notice, faviconUrl] = await Promise.all([
+  const [items, notice, faviconUrl, adminEmails] = await Promise.all([
     getItemsWithStock(),
     getNotice(),
     getFaviconUrl(),
+    getAdminEmails(),
   ]);
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-black">학생회 관리</h2>
-      <AdminPanel items={items} notice={notice} faviconUrl={faviconUrl} />
+      <AdminPanel
+        items={items}
+        notice={notice}
+        faviconUrl={faviconUrl}
+        adminEmails={adminEmails}
+      />
     </div>
   );
 }

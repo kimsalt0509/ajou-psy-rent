@@ -1,13 +1,15 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { CONTACT, SERVICE_NAME } from "./config";
 import { formatKST, isOverdue } from "./time";
+import { getAdminEmails } from "./store";
 
-const ADMIN_EMAILS: string[] = (process.env.ADMIN_EMAIL ?? "")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
-
-const isAdminEmail = (email: string) => ADMIN_EMAILS.includes(email.toLowerCase());
+/**
+ * 알림 받을 관리자 메일 — 관리 탭에서 바꾸면 바로 반영되도록
+ * 보내기 직전에 매번 읽습니다. (하루 호출 수가 적어 캐시하지 않습니다)
+ */
+async function adminEmails(): Promise<string[]> {
+  return (await getAdminEmails()).map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
 
 // ─── 전송 ────────────────────────────────────────────────────────────────────
 
@@ -146,11 +148,12 @@ export async function sendRentNotification(
   const rentedAt = formatKST(data.rentedAt, "datetime");
 
   const tasks: Promise<void>[] = [];
+  const admins = await adminEmails();
 
-  if (ADMIN_EMAILS.length) {
+  if (admins.length) {
     tasks.push(
       sendMail(
-        ADMIN_EMAILS,
+        admins,
         `[대여] ${data.studentName} - ${data.itemName} ${data.quantity}개`,
         renderMail({
           tone: "neutral",
@@ -170,7 +173,7 @@ export async function sendRentNotification(
     );
   }
 
-  if (data.studentEmail && !isAdminEmail(data.studentEmail)) {
+  if (data.studentEmail && !admins.includes(data.studentEmail.toLowerCase())) {
     tasks.push(
       sendMail(
         [data.studentEmail],
@@ -206,11 +209,12 @@ export async function sendReturnNotification(
   const dueStr = data.dueDate ? formatKST(data.dueDate, "date") : "";
 
   const tasks: Promise<void>[] = [];
+  const admins = await adminEmails();
 
-  if (ADMIN_EMAILS.length) {
+  if (admins.length) {
     tasks.push(
       sendMail(
-        ADMIN_EMAILS,
+        admins,
         `[반납] ${data.studentName} - ${data.itemName} ${data.quantity}개`,
         renderMail({
           tone: "success",
@@ -235,7 +239,7 @@ export async function sendReturnNotification(
     );
   }
 
-  if (data.studentEmail && !isAdminEmail(data.studentEmail)) {
+  if (data.studentEmail && !admins.includes(data.studentEmail.toLowerCase())) {
     const lateMsg =
       "같은 물품을 기다리는 다른 학우들도 있을 수 있으니,<br>다음에는 반납 기한을 맞춰서 반납 부탁드립니다.<br>이용해 주셔서 감사합니다.";
     tasks.push(
@@ -277,11 +281,12 @@ export async function sendOverdueNotification(
   const d = data.daysPast;
 
   const tasks: Promise<void>[] = [];
+  const admins = await adminEmails();
 
-  if (ADMIN_EMAILS.length) {
+  if (admins.length) {
     tasks.push(
       sendMail(
-        ADMIN_EMAILS,
+        admins,
         `[반납 기한 초과] ${data.studentName} - ${data.itemName} (${d}일 경과)`,
         renderMail({
           tone: "danger",

@@ -33,6 +33,8 @@ npm run dev                  # http://localhost:3000
 | `FIREBASE_*` | 앱 전체 동작 안 함 |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `ADMIN_EMAIL` | 메일 발송 안 함 |
 
+`ADMIN_EMAIL`은 **최초 기본값**입니다. 관리 탭 → "알림 받을 메일"에서 한 번 저장하면 그 뒤로는 Firestore(`settings/adminEmails`)의 목록이 쓰이며, 재배포 없이 바로 반영됩니다.
+
 권장: `ADMIN_SESSION_SECRET`, `RETENTION_DAYS=180`, `NEXT_PUBLIC_CONTACT_*`, (학교 계정 전용으로 전환 시) `ALLOWED_EMAIL_DOMAIN` + `NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN`
 
 ## Firebase 보안 규칙
@@ -54,6 +56,7 @@ app/
     rentals/[id]/return  반납 (본인 또는 관리자)
     me/               내 대여 목록 + 지난 입력값
     items/ storage/ notice/ favicon/  관리자 CRUD
+    admin-emails/     알림 받을 관리자 메일 목록 (관리자)
     storage/[id]/move 창고 → 재고 이동 (트랜잭션)
     photos/[filename] 사진 프록시 (관리자)
     admin/login       PIN 로그인 (서명 쿠키, 15분 5회 제한)

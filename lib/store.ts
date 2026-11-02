@@ -300,6 +300,40 @@ export async function setNotice(content: string): Promise<void> {
   await db().doc(NOTICE_DOC).set({ content, updatedAt: new Date().toISOString() });
 }
 
+// ─── 관리자 알림 메일 ────────────────────────────────────────────────────────
+
+const ADMIN_EMAILS_DOC = "settings/adminEmails";
+
+/** 환경변수 ADMIN_EMAIL — 사이트에서 한 번도 저장한 적이 없을 때 쓰는 기본값 */
+export function envAdminEmails(): string[] {
+  return (process.env.ADMIN_EMAIL ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * 알림을 받을 관리자 메일 목록.
+ * 사이트(관리 탭)에서 저장한 적이 있으면 그 값, 없으면 환경변수 값을 씁니다.
+ * 빈 배열로 저장했다면 "아무에게도 보내지 않음"이라는 뜻이므로 그대로 존중합니다.
+ */
+export async function getAdminEmails(): Promise<string[]> {
+  try {
+    const snap = await db().doc(ADMIN_EMAILS_DOC).get();
+    const list = snap.data()?.list;
+    if (Array.isArray(list))
+      return list.filter((e): e is string => typeof e === "string" && e.trim() !== "");
+  } catch (err) {
+    // Firestore를 못 읽어도 알림이 완전히 끊기지 않도록 환경변수 값으로 넘어갑니다
+    console.error("[store] 관리자 메일 목록을 불러오지 못했습니다. 환경변수 값을 사용합니다.", err);
+  }
+  return envAdminEmails();
+}
+
+export async function setAdminEmails(list: string[]): Promise<void> {
+  await db().doc(ADMIN_EMAILS_DOC).set({ list, updatedAt: new Date().toISOString() });
+}
+
 // ─── Favicon ─────────────────────────────────────────────────────────────────
 
 const FAVICON_DOC = "settings/favicon";
