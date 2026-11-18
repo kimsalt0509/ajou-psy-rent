@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/admin";
 import { sendReturnNotification } from "@/lib/email";
 import { adminAuth } from "@/lib/firebase-admin";
 import { InputError, errorResponse } from "@/lib/validate";
+import { logAdminAction } from "@/lib/audit";
 
 export async function POST(
   request: NextRequest,
@@ -40,6 +41,9 @@ export async function POST(
       returnedAt: new Date().toISOString(),
       returnedBy: isOwn ? "self" : "admin",
     });
+    if (!isOwn && admin) {
+      await logAdminAction(`대리 반납: ${rental.itemName} · ${rental.studentName}`);
+    }
 
     after(async () => {
       try {

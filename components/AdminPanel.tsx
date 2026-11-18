@@ -195,6 +195,7 @@ export function AdminPanel({
     setAdminEmails(data.emails ?? next);
     setEmailsSaved(true);
     setTimeout(() => setEmailsSaved(false), 2000);
+    router.refresh();
     return true;
   }
 
@@ -227,6 +228,7 @@ export function AdminPanel({
     if (res.ok) {
       setNoticeSaved(true);
       setTimeout(() => setNoticeSaved(false), 2000);
+      router.refresh();
     } else {
       const data = await readResponse(res);
       setError(data.error ?? "공지 저장에 실패했습니다.");

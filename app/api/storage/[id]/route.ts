@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
-import { deleteStorageItem, updateStorageItem } from "@/lib/store";
+import { logAdminAction } from "@/lib/audit";
+import { deleteStorageItem, getStorageItems, updateStorageItem } from "@/lib/store";
 import * as v from "@/lib/validate";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/storage/[id]">) {
@@ -32,6 +33,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/storag
       patch.quantity = v.int(body.quantity, "수량", { min: 0, max: 100000 });
 
     await updateStorageItem(id, patch);
+    const name = patch.name ?? (await getStorageItems()).find((s) => s.id === id)?.name ?? id;
+    await logAdminAction(`창고 물품 수정: ${name}`);
     return Response.json({ ok: true });
   } catch (error) {
     return v.errorResponse(error, "수정에 실패했습니다.");
@@ -44,7 +47,9 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/stor
 
   const { id } = await ctx.params;
   try {
+    const name = (await getStorageItems()).find((s) => s.id === id)?.name ?? id;
     await deleteStorageItem(id);
+    await logAdminAction(`창고 물품 삭제: ${name}`);
     return Response.json({ ok: true });
   } catch (error) {
     return v.errorResponse(error, "삭제에 실패했습니다.");

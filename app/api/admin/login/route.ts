@@ -11,11 +11,17 @@ import {
   recordLoginFailure,
   verifyPin,
 } from "@/lib/admin";
+import { verifyUser } from "@/lib/auth-helper";
 
 export async function POST(request: NextRequest) {
   if (!adminPin()) {
     console.error("[admin] ADMIN_PIN 환경변수가 설정되지 않았습니다.");
     return Response.json({ error: "관리자 로그인이 설정되지 않았습니다." }, { status: 503 });
+  }
+
+  const user = await verifyUser(request);
+  if (!user) {
+    return Response.json({ error: "먼저 Google 로그인을 해 주세요." }, { status: 401 });
   }
 
   const ip = clientIp(request);
@@ -33,8 +39,14 @@ export async function POST(request: NextRequest) {
   }
 
   await clearLoginFailures(ip);
+  const { logAdminAction } = await import("@/lib/audit");
+  await logAdminAction("관리자 로그인", {
+    uid: user.uid,
+    email: (user.email ?? "").toLowerCase(),
+    name: user.name || user.email || "관리자",
+  });
   const store = await cookies();
-  store.set(ADMIN_COOKIE, createAdminToken(), {
+  store.set(ADMIN_COOKIE, createAdminToken(user.uid), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

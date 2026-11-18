@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
+import { logAdminAction } from "@/lib/audit";
 import { createStorageItem, getStorageItems } from "@/lib/store";
 import * as v from "@/lib/validate";
 
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
         ? { imageUrl: v.str(body.imageUrl, "사진 주소", { max: 500 }) }
         : {}),
     });
+    await logAdminAction(`창고 물품 추가: ${item.name}`);
     return Response.json({ item });
   } catch (error) {
     return v.errorResponse(error, "추가에 실패했습니다.");

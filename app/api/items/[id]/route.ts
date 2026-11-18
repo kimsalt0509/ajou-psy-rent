@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
-import { deleteItem, updateItem, type ItemPatch } from "@/lib/store";
+import { logAdminAction } from "@/lib/audit";
+import { deleteItem, getItemById, updateItem, type ItemPatch } from "@/lib/store";
 import * as v from "@/lib/validate";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/items/[id]">) {
@@ -47,6 +48,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/items/
     }
 
     const item = await updateItem(id, patch);
+    await logAdminAction(`대여 물품 수정: ${item.name}`);
     return Response.json({ item });
   } catch (error) {
     return v.errorResponse(error, "수정에 실패했습니다.");
@@ -59,7 +61,9 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/item
 
   const { id } = await ctx.params;
   try {
+    const existing = await getItemById(id);
     await deleteItem(id);
+    await logAdminAction(`대여 물품 삭제: ${existing?.name ?? id}`);
     return Response.json({ ok: true });
   } catch (error) {
     return v.errorResponse(error, "삭제에 실패했습니다.");

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
+import { logAdminAction } from "@/lib/audit";
 import { savePhoto } from "@/lib/photos";
 import { getFaviconUrl, setFaviconUrl } from "@/lib/store";
 import { InputError, errorResponse } from "@/lib/validate";
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) throw new InputError("파일을 첨부해 주세요.");
     const url = await savePhoto(file, "favicon");
     await setFaviconUrl(url);
+    await logAdminAction("사이트 아이콘 변경");
     return Response.json({ url });
   } catch (error) {
     return errorResponse(error, "파비콘 업로드에 실패했습니다.");

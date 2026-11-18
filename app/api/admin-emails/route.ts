@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
+import { logAdminAction } from "@/lib/audit";
 import { getAdminEmails, setAdminEmails } from "@/lib/store";
 import * as v from "@/lib/validate";
 
@@ -26,6 +27,7 @@ export async function PUT(request: NextRequest) {
     }
 
     await setAdminEmails(list);
+    await logAdminAction(`알림 메일 목록 변경 (${list.length}명)`);
     return Response.json({ emails: list });
   } catch (error) {
     return v.errorResponse(error, "관리자 메일 저장에 실패했습니다.");
