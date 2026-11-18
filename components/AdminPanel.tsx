@@ -306,9 +306,6 @@ export function AdminPanel({
                 </p>
               </div>
             </div>
-            <p className="text-xs text-white/30">
-              관리자 비밀번호는 Vercel 환경변수 ADMIN_PIN으로 관리됩니다. 바꾸면 모든 관리자 세션이 로그아웃됩니다.
-            </p>
           </div>
         ) : null}
       </section>
