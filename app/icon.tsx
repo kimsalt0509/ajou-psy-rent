@@ -1,5 +1,4 @@
-import { getFaviconUrl } from "@/lib/store";
-import { readPhoto } from "@/lib/photos";
+import { getFaviconPhoto } from "@/lib/favicon-photo";
 
 export const dynamic = "force-dynamic";
 export const size = { width: 64, height: 64 };
@@ -19,12 +18,7 @@ function fallback() {
 
 export default async function Icon() {
   try {
-    const url = await getFaviconUrl();
-    const m = url?.match(/\/o\/uploads%2F([^?]+)/);
-    if (!m) return fallback();
-
-    // Storage를 비공개로 바꿔도 동작하도록 서버 권한으로 직접 읽음
-    const photo = await readPhoto(decodeURIComponent(m[1]));
+    const photo = await getFaviconPhoto();
     if (!photo) return fallback();
 
     return new Response(new Uint8Array(photo.buffer), {

@@ -4,6 +4,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { FirebaseAuthProvider } from "@/components/FirebaseAuthProvider";
 import { isAdmin } from "@/lib/admin";
 import { CONTACT } from "@/lib/config";
+import { getFaviconUpdatedAt } from "@/lib/store";
 import "./globals.css";
 
 const noto = Noto_Sans_KR({
@@ -11,11 +12,33 @@ const noto = Noto_Sans_KR({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "심리학과 학생회 대여",
-  description: "과방 물품 남은 수량 확인, 대여·반납 기록",
-  robots: { index: false, follow: false },
-};
+const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : "https://ajou-psy-rent-beige.vercel.app";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const faviconAt = (await getFaviconUpdatedAt()) ?? "none";
+  return {
+    metadataBase: new URL(siteUrl),
+    title: "심리학과 학생회 대여",
+    description: "과방 물품 남은 수량 확인, 대여·반납 기록",
+    robots: { index: false, follow: false },
+    openGraph: {
+      title: "심리학과 학생회 대여",
+      description: "과방 물품 남은 수량 확인, 대여·반납 기록",
+      type: "website",
+      locale: "ko_KR",
+      images: [
+        {
+          url: `/opengraph-image?v=${encodeURIComponent(faviconAt)}`,
+          width: 800,
+          height: 400,
+          alt: "심리학과 학생회 대여",
+        },
+      ],
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#ffffff",

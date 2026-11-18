@@ -343,6 +343,12 @@ export async function getFaviconUrl(): Promise<string | null> {
   return (snap.data()?.url as string) ?? null;
 }
 
+/** 파비콘을 바꾼 시각 — 링크 미리보기 캐시 무효화에 씁니다 */
+export async function getFaviconUpdatedAt(): Promise<string | null> {
+  const snap = await db().doc(FAVICON_DOC).get();
+  return (snap.data()?.updatedAt as string) ?? null;
+}
+
 export async function setFaviconUrl(url: string): Promise<void> {
   await db().doc(FAVICON_DOC).set({ url, updatedAt: new Date().toISOString() });
 }
