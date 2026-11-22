@@ -313,8 +313,11 @@ export async function sendOverdueNotification(
           alert: {
             bg: "#fff7f7",
             border: "#fecaca",
-            html: `<p style="margin:0;font-size:15px;color:#991b1b;font-weight:600">반납 기한으로부터 <strong>${d}일</strong>이 경과했습니다.</p>
-      <p style="margin:6px 0 0;font-size:13px;color:#b91c1c">연락하여 반납을 요청해 주세요.</p>`,
+            html: `<p style="margin:0;font-size:15px;color:#991b1b;font-weight:600">반납 기한으로부터 <strong>${d}일</strong>이 경과했습니다.</p>${
+              data.studentEmail
+                ? `<p style="margin:6px 0 0;font-size:13px;color:#b91c1c">당사자에게도 반납 요청 메일을 보냈습니다.</p>`
+                : ""
+            }`,
           },
           rows: [
             { label: "물품", value: item, strong: true },
