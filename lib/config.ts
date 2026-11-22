@@ -6,6 +6,17 @@ export const CONTACT = {
 
 export const SERVICE_NAME = "아주대학교 심리학과 학생회 물품 대여 시스템";
 
+/** 메일·미리보기에 쓰는 사이트 주소 */
+export const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : "https://ajou-psy-rent-beige.vercel.app";
+
+export function sitePath(path = "/") {
+  const base = SITE_URL.replace(/\/$/, "");
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${p}`;
+}
+
 /** 반납 완료 후 대여 기록 보관 기간(일). 미설정 시 자동 삭제하지 않음 */
 export const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 0) || 0;
 

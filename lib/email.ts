@@ -1,5 +1,5 @@
 import nodemailer, { type Transporter } from "nodemailer";
-import { CONTACT, SERVICE_NAME } from "./config";
+import { CONTACT, SERVICE_NAME, sitePath } from "./config";
 import { formatKST, isOverdue } from "./time";
 import { getAdminEmails } from "./store";
 
@@ -82,6 +82,7 @@ function renderMail(opts: {
   rows: Row[];
   after?: Box;
   showContact?: boolean;
+  cta?: { href: string; label: string };
 }) {
   const t = TONES[opts.tone];
   const box = (b: Box, margin: string) =>
@@ -117,6 +118,14 @@ function renderMail(opts: {
     <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
     ${opts.after ? box(opts.after, "16px 0 0") : ""}
     ${
+      opts.cta
+        ? `<p style="margin:20px 0 0;text-align:center">
+      <a href="${esc(opts.cta.href)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 20px;border-radius:12px">${esc(opts.cta.label)}</a>
+    </p>
+    <p style="margin:8px 0 0;font-size:12px;color:#888;text-align:center"><a href="${esc(opts.cta.href)}" style="color:#888">${esc(opts.cta.href)}</a></p>`
+        : ""
+    }
+    ${
       opts.showContact
         ? `<p style="margin:20px 0 0;font-size:13px;color:#555">문제 발생 시 연락처: ${esc(CONTACT.label)} ${esc(CONTACT.phone)}</p>`
         : ""
@@ -127,6 +136,7 @@ function renderMail(opts: {
 }
 
 const contactText = () => `\n\n문제 발생 시 연락처: ${CONTACT.label} ${CONTACT.phone}`;
+const linkText = (href: string, label: string) => `\n\n${label}: ${href}`;
 
 type Base = {
   studentName: string;
@@ -170,8 +180,9 @@ export async function sendRentNotification(
             { label: "대여 일시", value: rentedAt },
             { label: "반납 기한", value: due, strong: true, color: dueColor },
           ],
+          cta: { href: sitePath("/status"), label: "현황 보기" },
         }),
-        `[대여 접수] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n전화: ${data.phone}\n대여일시: ${rentedAt}\n반납기한: ${due}`,
+        `[대여 접수] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n전화: ${data.phone}\n대여일시: ${rentedAt}\n반납기한: ${due}${linkText(sitePath("/status"), "현황 보기")}`,
       ),
     );
   }
@@ -191,8 +202,9 @@ export async function sendRentNotification(
             { label: "대여 일시", value: formatKST(data.rentedAt, "short"), color: "#555" },
           ],
           showContact: true,
+          cta: { href: sitePath("/return"), label: "반납하러 가기" },
         }),
-        `[대여 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 대여가 정상적으로 접수되었습니다.\n\n반납 기한: ${due}\n대여 일시: ${rentedAt}${contactText()}`,
+        `[대여 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 대여가 정상적으로 접수되었습니다.\n\n반납 기한: ${due}\n대여 일시: ${rentedAt}${linkText(sitePath("/return"), "반납하러 가기")}${contactText()}`,
       ),
     );
   }
@@ -238,8 +250,9 @@ export async function sendReturnNotification(
             { label: "학번", value: esc(data.studentId) },
             { label: "반납 일시", value: returnedAt },
           ],
+          cta: { href: sitePath("/status"), label: "현황 보기" },
         }),
-        `[반납 완료] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n반납일시: ${returnedAt}${isLate ? `\n※ 반납 기한(${dueStr}) 이후 반납되었습니다.` : ""}`,
+        `[반납 완료] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n반납일시: ${returnedAt}${isLate ? `\n※ 반납 기한(${dueStr}) 이후 반납되었습니다.` : ""}${linkText(sitePath("/status"), "현황 보기")}`,
       ),
     );
   }
@@ -264,10 +277,11 @@ export async function sendReturnNotification(
                 html: `<p style="margin:0;font-size:13px;color:#78350f;line-height:1.6">${lateMsg}</p>`,
               }
             : undefined,
+          cta: { href: sitePath("/"), label: "사이트 열기" },
         }),
         isLate
-          ? `[반납 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 반납이 완료되었습니다.\n\n${lateMsg.replace(/<br>/g, " ")}\n\n반납 일시: ${returnedAt}`
-          : `[반납 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 반납이 정상적으로 처리되었습니다. 감사합니다!\n\n반납 일시: ${returnedAt}`,
+          ? `[반납 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 반납이 완료되었습니다.\n\n${lateMsg.replace(/<br>/g, " ")}\n\n반납 일시: ${returnedAt}${linkText(sitePath("/"), "사이트 열기")}`
+          : `[반납 완료] ${data.itemName} ${data.quantity}개\n\n안녕하세요, ${data.studentName}님.\n물품 반납이 정상적으로 처리되었습니다. 감사합니다!\n\n반납 일시: ${returnedAt}${linkText(sitePath("/"), "사이트 열기")}`,
       ),
     );
   }
@@ -309,8 +323,9 @@ export async function sendOverdueNotification(
             { label: "전화번호", value: esc(data.phone) },
             { label: "반납 기한", value: `${due} 초과`, strong: true, color: "#dc2626" },
           ],
+          cta: { href: sitePath("/status"), label: "현황 보기" },
         }),
-        `[반납 기한 초과] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n전화: ${data.phone}\n반납기한: ${due} (${d}일 경과)`,
+        `[반납 기한 초과] ${data.itemName} ${data.quantity}개\n이름: ${data.studentName}\n학번: ${data.studentId}\n전화: ${data.phone}\n반납기한: ${due} (${d}일 경과)${linkText(sitePath("/status"), "현황 보기")}`,
       ),
     );
   }
@@ -329,8 +344,9 @@ export async function sendOverdueNotification(
             { label: "반납 기한", value: due, strong: true, color: "#dc2626" },
           ],
           showContact: true,
+          cta: { href: sitePath("/return"), label: "반납하러 가기" },
         }),
-        `[반납 요청] ${data.itemName} 반납 기한이 ${d}일 지났습니다\n\n안녕하세요, ${data.studentName}님.\n대여하신 물품의 반납 기한이 ${d}일 지났습니다.\n빠른 시일 내에 반납해 주시기 바랍니다.\n\n물품: ${data.itemName} ${data.quantity}개\n반납 기한: ${due}${contactText()}`,
+        `[반납 요청] ${data.itemName} 반납 기한이 ${d}일 지났습니다\n\n안녕하세요, ${data.studentName}님.\n대여하신 물품의 반납 기한이 ${d}일 지났습니다.\n빠른 시일 내에 반납해 주시기 바랍니다.\n\n물품: ${data.itemName} ${data.quantity}개\n반납 기한: ${due}${linkText(sitePath("/return"), "반납하러 가기")}${contactText()}`,
       ),
     );
   }
